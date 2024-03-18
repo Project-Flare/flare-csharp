@@ -1,0 +1,19 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup>
+        <TargetFramework>net8.0</TargetFramework>
+        <RootNamespace>flare_csharp</RootNamespace>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <Nullable>enable</Nullable>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <PackageReference Include="Google.Protobuf" Version="3.26.0" />
+        <PackageReference Include="zxcvbn-core" Version="7.0.92" />
+    </ItemGroup>
+
+    <ItemGroup>
+	    <Protobuf Include=".\flare-proto\*.proto" AdditionalImportDirs=".\flare-proto" />
+    </ItemGroup>
+
+</Project>
