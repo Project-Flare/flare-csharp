@@ -3,17 +3,22 @@
     <PropertyGroup>
         <TargetFramework>net8.0</TargetFramework>
         <RootNamespace>flare_csharp</RootNamespace>
+        <RootNamespace>flare_csharp</RootNamespace>
         <ImplicitUsings>enable</ImplicitUsings>
         <Nullable>enable</Nullable>
     </PropertyGroup>
 
     <ItemGroup>
         <PackageReference Include="Google.Protobuf" Version="3.26.0" />
+        <PackageReference Include="Grpc.Tools" Version="2.62.0">
+          <PrivateAssets>all</PrivateAssets>
+          <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+        </PackageReference>
         <PackageReference Include="zxcvbn-core" Version="7.0.92" />
     </ItemGroup>
 
     <ItemGroup>
-	    <Protobuf Include=".\flare-proto\*.proto" AdditionalImportDirs=".\flare-proto" />
+	    <Protobuf Include="..\flare-proto\*.proto" AdditionalImportDirs="..\flare-proto" />
     </ItemGroup>
 
 </Project>

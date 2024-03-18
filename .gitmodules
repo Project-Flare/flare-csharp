@@ -1,0 +1,3 @@
+[submodule "flare-proto"]
+	path = flare-proto
+	url = https://github.com/Direct-Contact/flare-proto
