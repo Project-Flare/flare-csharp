@@ -1,7 +1,9 @@
 ﻿using Flare;
 using Google.Protobuf;
+using System.Net.Security;
 using System.Net.WebSockets;
 using System.Runtime.CompilerServices;
+using System.Security.Cryptography.X509Certificates;
 using Zxcvbn;
 
 namespace Flare
@@ -148,6 +150,30 @@ namespace Flare
 
         public async Task ConnectToServer()
         {
+            _webSocket.Options.RemoteCertificateValidationCallback =
+            (
+                object sender,
+                X509Certificate? certificate,
+                X509Chain? chain,
+                SslPolicyErrors sslPolicyErrors
+            ) =>
+            {
+                if ((sslPolicyErrors & ~SslPolicyErrors.RemoteCertificateChainErrors) != 0)
+                    return false;
+
+                if (certificate is null)
+                    return false;
+
+                const string pub_key_pin =
+                    "04447327fe093b0450bbae0346cf85" +
+                    "fb60491ea04adc1c7d10a49c3397bf" +
+                    "1a2539e7eea6a6b4109a5c62b2df55" +
+                    "003c998b4afb1f103b883f1f649b3b" +
+                    "6530ce8dd7";
+
+                return certificate.GetPublicKeyString().ToLower().Equals(pub_key_pin);
+            };
+
             await _webSocket.ConnectAsync(new Uri(_serverUrl), _ctSource.Token);
 
             ServerMessage serverMessage = await ReceiveServerMessageAsync();
