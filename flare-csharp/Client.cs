@@ -380,6 +380,7 @@ namespace Flare
 
             while (true)
             {
+                _ctSource.TryReset();
                 var response = await _webSocket.ReceiveAsync(new ArraySegment<byte>(_buffer, offset, free), _ctSource.Token);
 
                 if (response.EndOfMessage)
