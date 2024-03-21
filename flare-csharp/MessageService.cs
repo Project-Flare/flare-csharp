@@ -57,7 +57,7 @@ namespace flare_csharp
         private static CancellationTokenSource _ctSource = new CancellationTokenSource();
 
         // Is the client connected to server via web socket
-        public static bool Connected { get => _webSocket.State.Equals(WebSocketState.Open); }
+        public static bool Connected { get; private set; } = false;
 
         // Are all enqueued messages are sent to server
         public static bool AllMessagesSent { get => Connected && _messageQueue.Count == 0; }
@@ -100,7 +100,13 @@ namespace flare_csharp
             }
 
             if (!ReceiveResponseAsync().Result.ServerMessageTypeCase.Equals(ServerMessage.ServerMessageTypeOneofCase.Hello))
+            {
                 throw new ConnectionFailedException("The server: " + ServerUrl + " did not greet the client");
+            }
+            else
+            {
+                Connected = true;
+            }
         }
 
         /// <summary>

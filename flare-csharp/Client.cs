@@ -32,11 +32,15 @@ namespace flare_csharp
 
         public static async Task ConnectToServer()
         {
+            if (State.Equals(ClientState.Connected))
+                return;
+            
             try
             {
                 MessageService.CancelOperationAfter(120);
                 await MessageService.Connect();
-                State = ClientState.Connected;
+
+                State = (MessageService.Connected) ? ClientState.Connected : ClientState.NotConnected;
             }
             catch (ConnectionFailedException)
             {
