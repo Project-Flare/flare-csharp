@@ -7,18 +7,12 @@ using System.Threading.Tasks;
 
 namespace flare_csharp
 {
-    public class ClientRegisterFailedException : Exception
-    {
-        public ClientRegisterFailedException() : base() { }
-        public ClientRegisterFailedException(string message) : base(message) { }
-        public ClientRegisterFailedException(string message, Exception innerException) : base(message, innerException) { }
-    }
 
-    public class ClientLoginFailedException : Exception
+    public class ClientOperationFailedException : Exception
     {
-        public ClientLoginFailedException() : base() { }
-        public ClientLoginFailedException(string message) : base(message) { }
-        public ClientLoginFailedException(string message, Exception innerException) : base (message, innerException) { }
+        public ClientOperationFailedException() : base() { }
+        public ClientOperationFailedException(string message) : base(message) { }
+        public ClientOperationFailedException(string message, Exception innerException) : base(message, innerException) { }
     }
     public static class Client
     {
@@ -35,7 +29,7 @@ namespace flare_csharp
         public static UsernameValidity UsernameEvaluation { get => UserRegistration.ValidifyUsername(Username); }
         public static PasswordStrength PasswordStrength { get => UserRegistration.EvaluatePassword(Password); }
         public static ClientState State { get; private set; } = ClientState.NotConnected;
-
+        public static List<User> UserDiscoveryList { get; private set; } = new List<User>();
         public static async Task ConnectToServer()
         {
             if (State.Equals(ClientState.Connected))
@@ -57,10 +51,10 @@ namespace flare_csharp
         public static async Task RegisterToServer()
         {
             if (!UsernameEvaluation.Equals(UsernameValidity.Correct))
-                throw new ClientRegisterFailedException("Client username: " + Username + " is not valid");
+                throw new ClientOperationFailedException("Client username: " + Username + " is not valid");
 
             if (PasswordStrength <= PasswordStrength.Weak)
-                throw new ClientRegisterFailedException("Client password: " + Password + " is not valid");
+                throw new ClientOperationFailedException("Client password: " + Password + " is not valid");
             
             MessageService.AddMessage(new ClientMessage
             {
@@ -76,16 +70,16 @@ namespace flare_csharp
             ServerMessage? response = MessageService.GetServerResponse();
 
             if (response is null)
-                throw new ClientRegisterFailedException();
+                throw new ClientOperationFailedException();
 
             if (!response.ServerMessageTypeCase.Equals(ServerMessage.ServerMessageTypeOneofCase.RegisterResponse))
-                throw new ClientRegisterFailedException();
+                throw new ClientOperationFailedException();
 
             if (response.RegisterResponse.DenyReason.Equals(RegisterResponse.Types.RegisterDenyReason.RdrUsernameTaken))
-                throw new ClientRegisterFailedException("Username is taken");
+                throw new ClientOperationFailedException("Username is taken");
 
             if (!response.RegisterResponse.HasAuthToken)
-                throw new ClientRegisterFailedException();
+                throw new ClientOperationFailedException();
 
             AuthToken = response.RegisterResponse.AuthToken;
             State = ClientState.LoggedIn;
@@ -93,6 +87,9 @@ namespace flare_csharp
 
         public static async Task LoginToServer()
         {
+            if (!State.Equals(ClientState.Connected))
+                throw new ClientOperationFailedException("Client is not connected to the server");
+
             MessageService.AddMessage(new ClientMessage
             {
                 LoginRequest = new LoginRequest
@@ -107,20 +104,46 @@ namespace flare_csharp
             ServerMessage? response = MessageService.GetServerResponse();
 
             if (response is null)
-                throw new ClientLoginFailedException("Failed to get server response");
+                throw new ClientOperationFailedException("Failed to get server response");
 
             if (!response.ServerMessageTypeCase.Equals(ServerMessage.ServerMessageTypeOneofCase.LoginResponse))
-                throw new ClientLoginFailedException();
+                throw new ClientOperationFailedException();
 
             if (response.LoginResponse.HasDenyReason)
-                throw new ClientLoginFailedException("User login failed: " + response.LoginResponse.DenyReason);
+                throw new ClientOperationFailedException("User login failed: " + response.LoginResponse.DenyReason);
 
             if (!response.LoginResponse.HasAuthToken)
-                throw new ClientLoginFailedException("Failed to get authorization token");
+                throw new ClientOperationFailedException("Failed to get authorization token");
 
             AuthToken = response.LoginResponse.AuthToken;
             State = ClientState.LoggedIn;
         }
 
+        public static async Task FillUserDiscovery()
+        {
+            if (State.Equals(ClientState.NotConnected))
+                throw new ClientOperationFailedException("Client is not connected to the server");
+
+            if (!State.Equals(ClientState.LoggedIn))
+                throw new ClientOperationFailedException("Client is not logged in to the server");
+
+            MessageService.AddMessage(new ClientMessage
+            {
+                UserListRequest = new UserListRequest()
+            });
+
+            await MessageService.SendMessageAsync(1);
+
+            ServerMessage? response = MessageService.GetServerResponse();
+
+            if (response is null)
+                throw new ClientOperationFailedException();
+
+            if (!response.ServerMessageTypeCase.Equals(ServerMessage.ServerMessageTypeOneofCase.UserListResponse))
+                throw new ClientOperationFailedException();
+
+            foreach (User user in response.UserListResponse.Users)
+                UserDiscoveryList.Add(user);
+        }
     }
 }

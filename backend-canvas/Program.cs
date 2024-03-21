@@ -40,6 +40,20 @@ namespace backend_canvas
             }
 
             Console.WriteLine("Login successful: " + Client.AuthToken);
+
+            try
+            {
+                await Client.FillUserDiscovery();
+            }
+            catch(Exception)
+            {
+                Console.WriteLine("Failed to get user list");
+            }
+
+            foreach(var user in Client.UserDiscoveryList)
+            {
+                Console.WriteLine(user.ToString());
+            }
         }
     }
 }
