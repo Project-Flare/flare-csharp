@@ -28,10 +28,18 @@ namespace backend_canvas
             catch (Exception ex)
             {
                 Console.WriteLine("Failed to register client to server: " + ex.Message);
-                return;
             }
 
-            Console.WriteLine("Registration successful: " + Client.AuthToken);
+            try
+            {
+                await Client.LoginToServer();
+            }
+            catch(Exception ex)
+            {
+                Console.WriteLine("Failed to log in to server: " + ex.Message);
+            }
+
+            Console.WriteLine("Login successful: " + Client.AuthToken);
         }
     }
 }

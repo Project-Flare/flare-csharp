@@ -13,12 +13,18 @@ namespace flare_csharp
         public ClientRegisterFailedException(string message) : base(message) { }
         public ClientRegisterFailedException(string message, Exception innerException) : base(message, innerException) { }
     }
+
+    public class ClientLoginFailedException : Exception
+    {
+        public ClientLoginFailedException() : base() { }
+        public ClientLoginFailedException(string message) : base(message) { }
+        public ClientLoginFailedException(string message, Exception innerException) : base (message, innerException) { }
+    }
     public static class Client
     {
         public enum ClientState
         {
             NotConnected,
-            ConnectionFailed,
             Connected,
             LoggedIn
         }
@@ -44,7 +50,7 @@ namespace flare_csharp
             }
             catch (ConnectionFailedException)
             {
-                State = ClientState.ConnectionFailed;
+                State = ClientState.NotConnected;
             }
         }
 
@@ -65,7 +71,7 @@ namespace flare_csharp
                 }
             });
 
-            await MessageService.SendAllAddedMessagesAsync();
+            await MessageService.SendMessageAsync(MessageService.QueuedMessageCount);
 
             ServerMessage? response = MessageService.GetServerResponse();
 
@@ -82,6 +88,37 @@ namespace flare_csharp
                 throw new ClientRegisterFailedException();
 
             AuthToken = response.RegisterResponse.AuthToken;
+            State = ClientState.LoggedIn;
+        }
+
+        public static async Task LoginToServer()
+        {
+            MessageService.AddMessage(new ClientMessage
+            {
+                LoginRequest = new LoginRequest
+                {
+                    Username = Username,
+                    Password = Password
+                }
+            });
+
+            await MessageService.SendMessageAsync(1);
+
+            ServerMessage? response = MessageService.GetServerResponse();
+
+            if (response is null)
+                throw new ClientLoginFailedException("Failed to get server response");
+
+            if (!response.ServerMessageTypeCase.Equals(ServerMessage.ServerMessageTypeOneofCase.LoginResponse))
+                throw new ClientLoginFailedException();
+
+            if (response.LoginResponse.HasDenyReason)
+                throw new ClientLoginFailedException("User login failed: " + response.LoginResponse.DenyReason);
+
+            if (!response.LoginResponse.HasAuthToken)
+                throw new ClientLoginFailedException("Failed to get authorization token");
+
+            AuthToken = response.LoginResponse.AuthToken;
             State = ClientState.LoggedIn;
         }
 

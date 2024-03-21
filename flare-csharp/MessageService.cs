@@ -6,6 +6,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Net.Security;
 using System.Net.WebSockets;
+using System.Runtime.CompilerServices;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using System.Threading.Tasks;
@@ -64,6 +65,7 @@ namespace flare_csharp
 
         // Hardcoded server url to connect via TCP protocol
         public static string ServerUrl { get; private set; } = "wss://ws.project-flare.net/";
+        public static int QueuedMessageCount { get => _messageQueue.Count; }
 
         /// <summary>
         /// Specify longest time for asynchronous processes of the service should take in seconds
@@ -118,8 +120,7 @@ namespace flare_csharp
             _messageQueue.Enqueue(clientMessage);
         }
 
-
-        public static async Task SendAllAddedMessagesAsync()
+        public static async Task SendMessageAsync(int messageCount)
         {
             // There are no messages to be sent
             if (_messageQueue.Count == 0)
@@ -133,6 +134,10 @@ namespace flare_csharp
             {
                 // All messages are sent
                 if (_messageQueue.Count == 0)
+                    return;
+
+                // All requested messages are sent
+                if (messageCount == 0)
                     return;
 
                 // Get client message to send
@@ -166,6 +171,8 @@ namespace flare_csharp
                         "Failed to receive response from " + message.ClientMessageTypeCase + " client message server response",
                         ex);
                 }
+
+                messageCount--;
             }
         }
 
