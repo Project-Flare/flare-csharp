@@ -34,6 +34,7 @@ namespace flare_csharp
         {
             try
             {
+                MessageService.CancelOperationAfter(120);
                 await MessageService.Connect();
                 State = ClientState.Connected;
             }
