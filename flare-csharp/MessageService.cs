@@ -13,9 +13,6 @@ using System.Threading.Tasks;
 
 namespace flare_csharp
 {
-    /// <summary>
-    /// Receiving ServerMessage from the server process failed.
-    /// </summary>
     public class MessageServiceOperationException : Exception
     {
         public MessageServiceOperationException() : base() { }

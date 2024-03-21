@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using static Flare.AuthResponse.Types;
 
 namespace flare_csharp
 {
@@ -145,19 +146,38 @@ namespace flare_csharp
 
             MessageService.AddMessage(new ClientMessage
             {
+                AuthRequest = new AuthRequest
+                {
+                    SessionToken = AuthToken
+                }
+            });
+
+            MessageService.AddMessage(new ClientMessage
+            {
                 UserListRequest = new UserListRequest()
             });
 
-            await MessageService.SendMessageAsync(1);
+            await MessageService.SendMessageAsync(2);
 
             ServerMessage? response = MessageService.GetServerResponse();
+
+            if (response is null
+                || !response.ServerMessageTypeCase.Equals(ServerMessage.ServerMessageTypeOneofCase.AuthResponse)
+                || !response.AuthResponse.Result.Equals(AuthResult.ArOk))
+            {
+                throw new ClientOperationFailedException("Failed to establish secure session");
+            }
+
+            AuthToken = (response.AuthResponse.HasNewAuthToken) ? response.AuthResponse.NewAuthToken : AuthToken;
+
+            response = MessageService.GetServerResponse();
 
             if (response is null)
                 throw new ClientOperationFailedException();
 
             if (!response.ServerMessageTypeCase.Equals(ServerMessage.ServerMessageTypeOneofCase.UserListResponse))
                 throw new ClientOperationFailedException();
-
+            
             foreach (User user in response.UserListResponse.Users)
                 UserDiscoveryList.Add(user);
         }
