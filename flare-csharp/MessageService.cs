@@ -14,33 +14,13 @@ using System.Threading.Tasks;
 namespace flare_csharp
 {
     /// <summary>
-    /// The connection to the server process failed.
-    /// </summary>
-    public class ConnectionFailedException : Exception
-    {
-        public ConnectionFailedException() : base() { }
-        public ConnectionFailedException(string message) : base("Failed to connect the server") { }
-        public ConnectionFailedException(string message, Exception innerException) : base(message, innerException) { }
-    }
-
-    /// <summary>
-    /// Sending the ClientMessage to server process failed.
-    /// </summary>
-    public class SendClientMessageFailedException : Exception
-    {
-        public SendClientMessageFailedException() : base() { }
-        public SendClientMessageFailedException(string message) : base(message) { }
-        public SendClientMessageFailedException(string message, Exception innerException) : base(message, innerException) { }
-    }
-
-    /// <summary>
     /// Receiving ServerMessage from the server process failed.
     /// </summary>
-    public class ReceiveServerMessageFailedException : Exception
+    public class MessageServiceOperationException : Exception
     {
-        public ReceiveServerMessageFailedException() : base() { }
-        public ReceiveServerMessageFailedException(string message) : base(message) { }
-        public ReceiveServerMessageFailedException(string message, Exception innerException) : base(message, innerException) { }
+        public MessageServiceOperationException() : base() { }
+        public MessageServiceOperationException(string message) : base(message) { }
+        public MessageServiceOperationException(string message, Exception innerException) : base(message, innerException) { }
     }
 
     public static class MessageService
@@ -98,12 +78,12 @@ namespace flare_csharp
             }
             catch (Exception ex)
             {
-                throw new ConnectionFailedException("Failed to connect the server: " + ServerUrl, ex);
+                throw new MessageServiceOperationException("Failed to connect the server: " + ServerUrl, ex);
             }
 
             if (!ReceiveResponseAsync().Result.ServerMessageTypeCase.Equals(ServerMessage.ServerMessageTypeOneofCase.Hello))
             {
-                throw new ConnectionFailedException("The server: " + ServerUrl + " did not greet the client");
+                throw new MessageServiceOperationException("The server: " + ServerUrl + " did not greet the client");
             }
             else
             {
@@ -153,7 +133,7 @@ namespace flare_csharp
                 }
                 catch (Exception ex)
                 {
-                    throw new SendClientMessageFailedException("Failed to send " + message.ClientMessageTypeCase + " client message",
+                    throw new MessageServiceOperationException("Failed to send " + message.ClientMessageTypeCase + " client message",
                         ex);
                 }
 
@@ -167,7 +147,7 @@ namespace flare_csharp
                 }
                 catch (Exception ex)
                 {
-                    throw new ReceiveServerMessageFailedException(
+                    throw new MessageServiceOperationException(
                         "Failed to receive response from " + message.ClientMessageTypeCase + " client message server response",
                         ex);
                 }

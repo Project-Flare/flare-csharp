@@ -30,6 +30,10 @@ namespace flare_csharp
         public static PasswordStrength PasswordStrength { get => UserRegistration.EvaluatePassword(Password); }
         public static ClientState State { get; private set; } = ClientState.NotConnected;
         public static List<User> UserDiscoveryList { get; private set; } = new List<User>();
+
+        /// <summary>
+        /// Connects to server via Web Socket
+        /// </summary>
         public static async Task ConnectToServer()
         {
             if (State.Equals(ClientState.Connected))
@@ -42,12 +46,16 @@ namespace flare_csharp
 
                 State = (MessageService.Connected) ? ClientState.Connected : ClientState.NotConnected;
             }
-            catch (ConnectionFailedException)
+            catch (MessageServiceOperationException)
             {
                 State = ClientState.NotConnected;
             }
         }
 
+        /// <summary>
+        /// Register to server with the set credentials of the Client singleton
+        /// </summary>
+        /// <exception cref="ClientOperationFailedException">Failed to register to server</exception>
         public static async Task RegisterToServer()
         {
             if (!UsernameEvaluation.Equals(UsernameValidity.Correct))
@@ -85,6 +93,10 @@ namespace flare_csharp
             State = ClientState.LoggedIn;
         }
 
+        /// <summary>
+        /// Log in to server with set Client singleton credentials
+        /// </summary>
+        /// <exception cref="ClientOperationFailedException">Client login operation failed</exception>
         public static async Task LoginToServer()
         {
             if (!State.Equals(ClientState.Connected))
@@ -119,6 +131,10 @@ namespace flare_csharp
             State = ClientState.LoggedIn;
         }
 
+        /// <summary>
+        /// Fills user discovery list with other users of the app
+        /// </summary>
+        /// <exception cref="ClientOperationFailedException">Failed to fill user discovery list with users</exception>
         public static async Task FillUserDiscovery()
         {
             if (State.Equals(ClientState.NotConnected))
