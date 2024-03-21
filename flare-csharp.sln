@@ -3,7 +3,9 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
 VisualStudioVersion = 17.9.34701.34
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "flare-csharp", "flare-csharp\flare-csharp.csproj", "{9F668A48-BEA4-495F-957E-7C5477A4F571}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "flare-csharp", "flare-csharp\flare-csharp.csproj", "{9F668A48-BEA4-495F-957E-7C5477A4F571}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "backend-canvas", "backend-canvas\backend-canvas.csproj", "{1BB12C9B-C5D9-4E30-8B0E-85565808ECB2}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -15,6 +17,10 @@ Global
 		{9F668A48-BEA4-495F-957E-7C5477A4F571}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{9F668A48-BEA4-495F-957E-7C5477A4F571}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{9F668A48-BEA4-495F-957E-7C5477A4F571}.Release|Any CPU.Build.0 = Release|Any CPU
+		{1BB12C9B-C5D9-4E30-8B0E-85565808ECB2}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{1BB12C9B-C5D9-4E30-8B0E-85565808ECB2}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{1BB12C9B-C5D9-4E30-8B0E-85565808ECB2}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{1BB12C9B-C5D9-4E30-8B0E-85565808ECB2}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

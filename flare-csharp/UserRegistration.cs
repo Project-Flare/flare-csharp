@@ -25,66 +25,8 @@ namespace Flare
         Correct
     }
 
-    public class UserRegistration
+    public static class UserRegistration
     {
-        public string Username
-        {
-            get => _username;
-
-            set
-            {
-                if (ValidifyUsername(value) == UsernameValidity.Correct)
-                    _username = value;
-            }
-        }
-        public string Password
-        {
-            get => _password;
-
-            set
-            {
-                var evaluation = EvaluatePassword(value);
-                switch (evaluation)
-                {
-                    case PasswordStrength.None:
-                        return;
-                    case PasswordStrength.Unacceptable:
-                        return;
-                    case PasswordStrength.Weak:
-                        return;
-                    case PasswordStrength.Good:
-                        _password = value;
-                        return;
-                    case PasswordStrength.Excellent:
-                        _password = value;
-                        return;
-                    default:
-                        return;
-                }
-            }
-        }
-        public bool IsValid
-        {
-            get
-            {
-                // Username or password are not set
-                if (_username == string.Empty || _password == string.Empty)
-                    return false;
-
-                return true;
-            }
-        }
-        public bool UsernameValid { get => _username != string.Empty; }
-        public bool PasswordValid { get => _password != string.Empty; }
-
-        private string _username;
-        private string _password;
-
-        public UserRegistration()
-        {
-            _username = string.Empty;
-            _password = string.Empty;
-        }
 
         public static PasswordStrength EvaluatePassword(string password)
         {
@@ -127,26 +69,12 @@ namespace Flare
             return UsernameValidity.Correct;
         }
 
-        public static bool ContainsOnlyAscii(string str)
+        private static bool ContainsOnlyAscii(string str)
         {
             foreach (char c in str)
                 if (!char.IsAscii(c))
                     return false;
             return true;
-        }
-
-        public RegisterRequest? FormRegistrationRequest()
-        {
-            if (!UsernameValid || !PasswordValid)
-                return null;
-
-            RegisterRequest request = new RegisterRequest
-            {
-                Username = _username,
-                Password = _password
-            };
-
-            return request;
         }
     }
 }
