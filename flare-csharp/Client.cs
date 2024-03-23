@@ -251,5 +251,24 @@ namespace flare_csharp
             foreach (User user in response.UserListResponse.Users)
                 UserDiscoveryList.Add(user);
         }
+
+        /// <summary>
+        /// Disconnects from server, check <see cref="State"/> if the disconnection was successful.
+        /// </summary>
+        /// <exception cref="ClientOperationFailedException">
+        /// Throw when operation of <see cref="MessageService.Disconnect()"/> fails.
+        /// </exception>
+        public static async Task DisconnectFromServer()
+        {
+            try
+            {
+                await MessageService.Disconnect();
+                State = ClientState.NotConnected;
+            }
+            catch(Exception) 
+            {
+                throw new ClientOperationFailedException("Failed to disconnect from server");
+            }
+        }
     }
 }

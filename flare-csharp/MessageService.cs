@@ -164,6 +164,14 @@ namespace flare_csharp
             return _responseQueue.Dequeue() as ServerMessage;
         }
 
+        /// <summary>
+        /// Closes Web Socket from server.
+        /// </summary>
+        public static async Task Disconnect()
+        {
+            await _webSocket.CloseAsync(WebSocketCloseStatus.NormalClosure, null, _ctSource.Token);
+        }
+
         private static void SetRemoteCertificate()
         {
             _webSocket.Options.RemoteCertificateValidationCallback =
