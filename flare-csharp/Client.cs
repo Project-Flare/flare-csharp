@@ -248,5 +248,18 @@ namespace flare_csharp
             foreach (User user in response.UserListResponse.Users)
                 UserDiscoveryList.Add(user);
         }
+
+        /// <summary>
+        /// Tries to disconnect from the server
+        /// </summary>
+        public static async Task DisconnectFromServer()
+        {
+            try
+            {
+                await MessageService.Disconnect();
+                State = ClientState.NotConnected;
+            }
+            catch(Exception) { }
+        }
     }
 }
