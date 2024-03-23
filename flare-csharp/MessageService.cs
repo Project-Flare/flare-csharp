@@ -13,6 +13,9 @@ using System.Threading.Tasks;
 
 namespace flare_csharp
 {
+    /// <summary>
+    /// Used to throw when <see cref="MessageService"/> singleton operations fail.
+    /// </summary>
     public class MessageServiceOperationException : Exception
     {
         public MessageServiceOperationException() : base() { }
@@ -20,6 +23,9 @@ namespace flare_csharp
         public MessageServiceOperationException(string message, Exception innerException) : base(message, innerException) { }
     }
 
+    /// <summary>
+    /// Singleton that manages the process of sending and receiving messages via Web Socket. This should never be used outside of the backend project.
+    /// </summary>
     public static class MessageService
     {
         // Enqueues messages that need to be sent

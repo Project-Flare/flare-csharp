@@ -28,6 +28,11 @@ namespace Flare
     public static class UserRegistration
     {
 
+        /// <summary>
+        /// Evaluates password using zxcvbn algorithm <see href="https://github.com/trichards57/zxcvbn-cs" />
+        /// </summary>
+        /// <param name="password"></param>
+        /// <returns>An evaluation of the given string as a password</returns>
         public static PasswordStrength EvaluatePassword(string password)
         {
             // just invalid input
@@ -54,6 +59,11 @@ namespace Flare
             return PasswordStrength.Excellent;
         }
 
+        /// <summary>
+        /// Username by the protocol must contain only ASCII characters, can't be blank or empty and can only contain alphanumerical symbols (_ symbol included).
+        /// </summary>
+        /// <param name="username">String to check the validity as a username</param>
+        /// <returns>Correct if all requirements are met</returns>
         public static UsernameValidity ValidifyUsername(string username)
         {
             if (string.IsNullOrEmpty(username) || string.IsNullOrWhiteSpace(username))

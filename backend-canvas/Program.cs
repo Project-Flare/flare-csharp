@@ -7,7 +7,7 @@ namespace backend_canvas
     {
         static async Task Main(string[] args)
         {
-
+            // Just the sandbox
             Console.WriteLine(Client.State);
 
             await Client.ConnectToServer();
