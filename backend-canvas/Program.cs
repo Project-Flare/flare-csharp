@@ -14,18 +14,11 @@ namespace backend_canvas
 
             Console.WriteLine(Client.State);
 
-            await Client.DisconnectFromServer();
-
-            Console.WriteLine(Client.State);
-
             Client.Username = "herkus_leon_kaselis_3";
             Client.Password = "n:+l@/~t}E:~\\7:N}\"ELR.8<9";
 
             Console.WriteLine("Username is " + Client.UsernameEvaluation);
             Console.WriteLine("Password is " + Client.PasswordStrength);
-
-            Client.Username = "Skibidi";
-            Client.Password = "scndjakcn((201328::aksdl]{";
 
             Console.WriteLine("Registration of " + Client.Username + " started...");
             try
@@ -61,6 +54,12 @@ namespace backend_canvas
             {
                 Console.WriteLine(user.ToString());
             }
+
+            Console.WriteLine(Client.State);
+
+            await Client.DisconnectFromServer();
+
+            Console.WriteLine(Client.State);
         }
     }
 }
