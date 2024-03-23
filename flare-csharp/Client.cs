@@ -8,6 +8,8 @@ using static Flare.AuthResponse.Types;
 
 namespace flare_csharp
 {
+   
+
     /// <summary>
     /// Everything that goes wrong in <see cref="Client"/> singleton or not according to plan, this exception is thrown.
     /// </summary>
@@ -21,7 +23,7 @@ namespace flare_csharp
     /// <summary>
     /// This class manages communication between server and the client app.
     /// </summary>
-    public static class Client
+    public static class Client 
     {
         /// <summary>
         /// Describes the current state of the client.
@@ -81,6 +83,7 @@ namespace flare_csharp
         /// List of all users (except the client itself) that are registered to the server, can be used to search user by its <c>Username</c> property value.
         /// </value>
         public static List<User> UserDiscoveryList { get; private set; } = new List<User>();
+
 
         /// <summary>
         /// Tries to connect to the server via Web Socket. This method won't throw any exceptions if the connection operation fails, to check if the connection was successful, check <c>State</c> property.
