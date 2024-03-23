@@ -250,8 +250,11 @@ namespace flare_csharp
         }
 
         /// <summary>
-        /// Tries to disconnect from the server
+        /// Disconnects from server, check <see cref="State"/> if the disconnection was successful.
         /// </summary>
+        /// <exception cref="ClientOperationFailedException">
+        /// Throw when operation of <see cref="MessageService.Disconnect()"/> fails.
+        /// </exception>
         public static async Task DisconnectFromServer()
         {
             try
@@ -259,7 +262,10 @@ namespace flare_csharp
                 await MessageService.Disconnect();
                 State = ClientState.NotConnected;
             }
-            catch(Exception) { }
+            catch(Exception) 
+            {
+                throw new ClientOperationFailedException("Failed to disconnect from server");
+            }
         }
     }
 }
