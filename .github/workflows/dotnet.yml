@@ -18,6 +18,8 @@ jobs:
         dotnet-version: 8.0.x
     - name: Restore dependencies
       run: dotnet restore
+    - name: Pull submodules
+      run: git submodule update --init --recursive
     - name: Build
       run: dotnet build --no-restore
     - name: Test
