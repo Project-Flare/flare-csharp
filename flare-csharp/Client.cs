@@ -2,9 +2,13 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Net.WebSockets;
 using System.Text;
 using System.Threading.Tasks;
 using static Flare.AuthResponse.Types;
+using static Flare.LoginResponse.Types;
+
+using LoginDenyReason = Flare.LoginResponse.Types.LoginDenyReason;
 
 namespace flare_csharp
 {
@@ -126,10 +130,10 @@ namespace flare_csharp
         public static async Task RegisterToServer()
         {
             if (!UsernameEvaluation.Equals(UsernameValidity.Correct))
-                throw new ClientOperationFailedException("Client username: " + Username + " is not valid");
+                throw new ClientOperationFailedException("username invalid");
 
             if (PasswordStrength <= PasswordStrength.Weak)
-                throw new ClientOperationFailedException("Client password: " + Password + " is not valid");
+                throw new ClientOperationFailedException("password invalid");
             
             MessageService.AddMessage(new ClientMessage
             {
@@ -151,7 +155,7 @@ namespace flare_csharp
                 throw new ClientOperationFailedException();
 
             if (response.RegisterResponse.DenyReason.Equals(RegisterResponse.Types.RegisterDenyReason.RdrUsernameTaken))
-                throw new ClientOperationFailedException("Username is taken");
+                throw new ClientOperationFailedException("username already taken");
 
             if (!response.RegisterResponse.HasAuthToken)
                 throw new ClientOperationFailedException();
@@ -169,7 +173,7 @@ namespace flare_csharp
         public static async Task LoginToServer()
         {
             if (!State.Equals(ClientState.Connected))
-                throw new ClientOperationFailedException("Client is not connected to the server");
+                throw new ClientOperationFailedException("not connected");
 
             MessageService.AddMessage(new ClientMessage
             {
@@ -185,16 +189,25 @@ namespace flare_csharp
             ServerMessage? response = MessageService.GetServerResponse();
 
             if (response is null)
-                throw new ClientOperationFailedException("Failed to get server response");
+                throw new ClientOperationFailedException("server unresponsive");
 
             if (!response.ServerMessageTypeCase.Equals(ServerMessage.ServerMessageTypeOneofCase.LoginResponse))
                 throw new ClientOperationFailedException();
 
             if (response.LoginResponse.HasDenyReason)
-                throw new ClientOperationFailedException("User login failed: " + response.LoginResponse.DenyReason);
+            {
+                switch (response.LoginResponse.DenyReason) {
+                    case LoginDenyReason.LdrUsernameInvalid:
+                        throw new ClientOperationFailedException("user not found");
+                    case LoginDenyReason.LdrPasswordInvalid:
+                        throw new ClientOperationFailedException("invalid password");
+                    default:
+                        throw new ClientOperationFailedException("unknown server errror");
+                }
+            }
 
             if (!response.LoginResponse.HasAuthToken)
-                throw new ClientOperationFailedException("Failed to get authorization token");
+                throw new ClientOperationFailedException("failed to get authorization token");
 
             AuthToken = response.LoginResponse.AuthToken;
             State = ClientState.LoggedIn;
@@ -209,10 +222,10 @@ namespace flare_csharp
         public static async Task FillUserDiscovery()
         {
             if (State.Equals(ClientState.NotConnected))
-                throw new ClientOperationFailedException("Client is not connected to the server");
+                throw new ClientOperationFailedException("not connected");
 
             if (!State.Equals(ClientState.LoggedIn))
-                throw new ClientOperationFailedException("Client is not logged in to the server");
+                throw new ClientOperationFailedException("not authenticated");
 
             MessageService.AddMessage(new ClientMessage
             {
@@ -235,7 +248,7 @@ namespace flare_csharp
                 || !response.ServerMessageTypeCase.Equals(ServerMessage.ServerMessageTypeOneofCase.AuthResponse)
                 || !response.AuthResponse.Result.Equals(AuthResult.ArOk))
             {
-                throw new ClientOperationFailedException("Failed to establish secure session");
+                throw new ClientOperationFailedException("failed to authenticate");
             }
 
             AuthToken = (response.AuthResponse.HasNewAuthToken) ? response.AuthResponse.NewAuthToken : AuthToken;
@@ -267,7 +280,7 @@ namespace flare_csharp
             }
             catch(Exception) 
             {
-                throw new ClientOperationFailedException("Failed to disconnect from server");
+                throw new ClientOperationFailedException("could not disconnect");
             }
         }
     }

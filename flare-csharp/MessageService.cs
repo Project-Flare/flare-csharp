@@ -76,6 +76,7 @@ namespace flare_csharp
         {
             try
             {
+                _webSocket = new ClientWebSocket();
                 SetRemoteCertificate();
                 await _webSocket.ConnectAsync(new Uri(ServerUrl), _ctSource.Token);
             }
@@ -174,6 +175,10 @@ namespace flare_csharp
 
         private static void SetRemoteCertificate()
         {
+            // Setting the validation callback twice will throw
+            if (_webSocket.Options.RemoteCertificateValidationCallback != null)
+                return;
+
             _webSocket.Options.RemoteCertificateValidationCallback =
             (
                 object sender,
