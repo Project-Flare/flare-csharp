@@ -1,413 +1,274 @@
 ﻿using Flare;
-using Google.Protobuf;
-using System.Net.Security;
-using System.Net.WebSockets;
-using System.Runtime.CompilerServices;
-using System.Security.Cryptography.X509Certificates;
-using Zxcvbn;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+using static Flare.AuthResponse.Types;
 
-namespace Flare
+namespace flare_csharp
 {
-    public class Client
+   
+
+    /// <summary>
+    /// Everything that goes wrong in <see cref="Client"/> singleton or not according to plan, this exception is thrown.
+    /// </summary>
+    public class ClientOperationFailedException : Exception
     {
-        public enum RegistrationResponse
+        public ClientOperationFailedException() : base() { }
+        public ClientOperationFailedException(string message) : base(message) { }
+        public ClientOperationFailedException(string message, Exception innerException) : base(message, innerException) { }
+    }
+
+    /// <summary>
+    /// This class manages communication between server and the client app.
+    /// </summary>
+    public static class Client 
+    {
+        /// <summary>
+        /// Describes the current state of the client.
+        /// </summary>
+        public enum ClientState
         {
-            ClientIsNotConnectedToTheServer,
-            SubmittedUserRegistrationNotValid,
-            FailedToFormRegisterRequest,
-            FailedToGetServerResponse,
-            ServerRegisterResponseInvalid,
-            ServerDenyReasonUsernameTaken,
-            ServerDenyReasonUsernameInvalidSyntax,
-            ServerDenyReasonUsernameInvalidLength,
-            ServerDenyReasonPasswordIsBlank,
-            ServerDenyReasonPasswordIsWeak,
-            ServerDenyReasonUnknown,
-            ServerDenyInterpretationUnknown,
-            NewUserRegistrationSucceeded,
-            NewUserRegistrationFailed
+            NotConnected,
+            Connected,
+            LoggedIn
         }
 
-        public enum LoginResponse
-        {
-            UserCredentialsNotSet,
-            FailedToGetServerLoginResponse,
-            FailedToGetServerResponse,
-            ServerLoginResponseInvalid,
-            ServerDenyReasonInvalidUsername,
-            ServerDenyReasonInvalidPassword,
-            ServerDenyReasonUnknown,
-            ServerDenyInterpretationUnknown,
-            UserLoginSucceeded,
-            UserLoginFailed
-        }
+        /// <value>
+        /// Used as credentials when logging to server. Username must be set correctly. Use <c>UserRegistration</c> class to check username syntax correctness.
+        /// Default value is empty string.
+        /// <example>
+        /// Example of correct setting of username property:
+        /// <code>
+        /// Client.Username = (UserRegistration.ValidifyUsername(string newUsername) == UsernameValidity.Correct) ? username : Client.Username;
+        /// </code>
+        /// </example>
+        /// </value>
+        public static string Username { get; set; } = string.Empty;
 
-        public enum AuthenticationResponse
-        {
-            UserCredentialsAuthTokenNotFilled,
-            FailedToGetServerAuthResponse,
-            ServerAuthResponseInvalid,
-            NewSessionTokenNotReceived,
-            ServerResponseCurrentUserAuthTokenIsOk,
-            UserAuthTokenIsRenewed,
-            ServerDenyUserAuthTokenIsInvalid,
-            ServerDenyUserAuthTokenExpired,
-            ServerDenyUnknown,
-            ServerNewTokenNotReceived,
-            NewTokenAuthFailed
-        }
+        /// <value>
+        /// Password is used when logging in or registering to server. It's evaluation must be good or excellent to be passed as valid credentials to server. Default value is empty string.
+        /// <example>
+        /// Example:
+        /// <code>
+        /// Client.Password = (UserRegistration.EvaluatePassword(string newPassword) >= PasswordStrength.Good) newPassword : Client.Password;
+        /// </code>
+        /// </example>
+        /// </value>
+        public static string Password { get; set; } = string.Empty;
 
-        public enum UserListResponse
-        {
-            FailedToSendUserListRequest,
-            FailedToReceiveUserListResponse,
-            UserListIsFilledSuccessfully
-        }
+        /// <value>
+        /// Each session is authenticated with a server-issued key, which may change if the server issues a new session key. The session authentication token is obtained at login or at registration as a new user.
+        /// </value>
+        public static string AuthToken { get; private set; } = string.Empty;
 
-        public sealed class Credentials
-        {
-            private string _username;
-            private string _password;
-            private string _authToken;
+        /// <value>
+        /// Use this to check <c>Username</c> property syntax evaluation.
+        /// </value>
+        public static UsernameValidity UsernameEvaluation { get => UserRegistration.ValidifyUsername(Username); }
 
-            public string Username { get => _username; set => _username = value; }
-            public string Password { get => _password; set => _password = value; }
-            public string AuthToken { get => _authToken; set => _authToken = value; }
-            public bool Filled
+        /// <value>
+        /// Use this to check <c>Password</c> property strength. An acceptable password is a <c>PasswordStrength.Good</c> or <c>PasswordStrength.Excellent</c> rating.
+        /// </value>
+        public static PasswordStrength PasswordStrength { get => UserRegistration.EvaluatePassword(Password); }
+
+        /// <value>
+        /// The user may not yet be connected to the server, in which case all operations related to server communication will cause errors or exceptions. Always check if the client is connected to the server before using <c>Client</c> singleton opearations.
+        /// If the client is logged in successfully, then instead of <c>Connected</c> the state will be <c>LoggedIn</c>.
+        /// </value>
+        public static ClientState State { get; private set; } = ClientState.NotConnected;
+
+        /// <value>
+        /// List of all users (except the client itself) that are registered to the server, can be used to search user by its <c>Username</c> property value.
+        /// </value>
+        public static List<User> UserDiscoveryList { get; private set; } = new List<User>();
+
+
+        /// <summary>
+        /// Tries to connect to the server via Web Socket. This method won't throw any exceptions if the connection operation fails, to check if the connection was successful, check <c>State</c> property.
+        /// <example>
+        /// Example how the operation should be used:
+        /// </example>
+        /// <code>
+        /// if (Client.State.Equals(ClientState.NotConnected))
+        ///     await Client.ConnectToServer();
+        ///     
+        /// if (!Client.State.Equals(ClientState.Connected))
+        ///     Console.WriteLine("Failed to connect the server...")
+        /// </code>
+        /// </summary>
+        public static async Task ConnectToServer()
+        {
+            if (State.Equals(ClientState.Connected))
+                return;
+            
+            try
             {
-                get
+                MessageService.CancelOperationAfter(120);
+                await MessageService.Connect();
+
+                State = (MessageService.Connected) ? ClientState.Connected : ClientState.NotConnected;
+            }
+            catch (MessageServiceOperationException)
+            {
+                State = ClientState.NotConnected;
+            }
+        }
+
+        /// <summary>
+        /// If <see cref="Username"/> and <see cref="Password"/> properties set in accordance with the requirements of the Protocol and <see cref="State"/> property is <see cref="ClientState.Connected"/>,
+        /// then the attempt to register client to the server will be made. When registration succeeds, the <see cref="State"/> property changes to <see cref="ClientState.LoggedIn"/>.
+        /// </summary>
+        /// <exception cref="ClientOperationFailedException">
+        /// Throw when the requirements are not met or registration to the server failed.
+        /// </exception>
+        public static async Task RegisterToServer()
+        {
+            if (!UsernameEvaluation.Equals(UsernameValidity.Correct))
+                throw new ClientOperationFailedException("Client username: " + Username + " is not valid");
+
+            if (PasswordStrength <= PasswordStrength.Weak)
+                throw new ClientOperationFailedException("Client password: " + Password + " is not valid");
+            
+            MessageService.AddMessage(new ClientMessage
+            {
+                RegisterRequest = new RegisterRequest
                 {
-                    return !(string.IsNullOrEmpty(_username) || string.IsNullOrEmpty(_password) || string.IsNullOrEmpty(_authToken));
+                    Username = Username,
+                    Password = Password
                 }
-            }
+            });
 
-            public bool CredentialsFilled
+            await MessageService.SendMessageAsync(MessageService.QueuedMessageCount);
+
+            ServerMessage? response = MessageService.GetServerResponse();
+
+            if (response is null)
+                throw new ClientOperationFailedException();
+
+            if (!response.ServerMessageTypeCase.Equals(ServerMessage.ServerMessageTypeOneofCase.RegisterResponse))
+                throw new ClientOperationFailedException();
+
+            if (response.RegisterResponse.DenyReason.Equals(RegisterResponse.Types.RegisterDenyReason.RdrUsernameTaken))
+                throw new ClientOperationFailedException("Username is taken");
+
+            if (!response.RegisterResponse.HasAuthToken)
+                throw new ClientOperationFailedException();
+
+            AuthToken = response.RegisterResponse.AuthToken;
+            State = ClientState.LoggedIn;
+        }
+
+        /// <summary>
+        /// Log in to server with set client singleton <see cref="Username"/> and <see cref="Password"/> credentials.
+        /// </summary>
+        /// <exception cref="ClientOperationFailedException">
+        /// Throw when login operation failed or the requirements were not met.
+        /// </exception>
+        public static async Task LoginToServer()
+        {
+            if (!State.Equals(ClientState.Connected))
+                throw new ClientOperationFailedException("Client is not connected to the server");
+
+            MessageService.AddMessage(new ClientMessage
             {
-                get
+                LoginRequest = new LoginRequest
                 {
-                    return !(string.IsNullOrEmpty(_username) || string.IsNullOrEmpty(_password));
+                    Username = Username,
+                    Password = Password
                 }
-            }
+            });
 
-            public Credentials()
-            {
-                _username = string.Empty;
-                _password = string.Empty;
-                _authToken = string.Empty;
-            }
-            public Credentials(string username, string password, string authToken)
-            {
-                _username = username;
-                _password = password;
-                _authToken = authToken;
-            }
+            await MessageService.SendMessageAsync(1);
+
+            ServerMessage? response = MessageService.GetServerResponse();
+
+            if (response is null)
+                throw new ClientOperationFailedException("Failed to get server response");
+
+            if (!response.ServerMessageTypeCase.Equals(ServerMessage.ServerMessageTypeOneofCase.LoginResponse))
+                throw new ClientOperationFailedException();
+
+            if (response.LoginResponse.HasDenyReason)
+                throw new ClientOperationFailedException("User login failed: " + response.LoginResponse.DenyReason);
+
+            if (!response.LoginResponse.HasAuthToken)
+                throw new ClientOperationFailedException("Failed to get authorization token");
+
+            AuthToken = response.LoginResponse.AuthToken;
+            State = ClientState.LoggedIn;
         }
 
-        // Server URL (DO NOT TOUCH)
-        const string _serverUrl = "wss://ws.project-flare.net/";
-
-        // Client contacts the server only through this channel
-        private ClientWebSocket _webSocket;
-
-        // Required to specify a maximum time period for contact tasks
-        private CancellationTokenSource _ctSource;
-
-        // Whether the client has successfully connected to the server
-        private bool _connected;
-
-        // Storing user credentials (loaded or new registration)
-        private Credentials _usrCredentials;
-
-        // Message buffer
-        private const int KILOBYTE = 1024;
-        private byte[] _buffer = new byte[KILOBYTE];
-
-        // List of all users of the DC
-        public List<string> UserList { get; private set; }
-
-        public bool IsConnected { get => _connected; }
-        public Credentials UserCredentials
+        /// <summary>
+        /// Populates <see cref="UserDiscoveryList"/> property with other users that are registered (not necessarily currently logged in) to server.
+        /// </summary>
+        /// <exception cref="ClientOperationFailedException">
+        /// Throw when client is not connected to server, logged in or sending/receiving operations failed.
+        /// </exception>
+        public static async Task FillUserDiscovery()
         {
-            get => _usrCredentials;
-            set
+            if (State.Equals(ClientState.NotConnected))
+                throw new ClientOperationFailedException("Client is not connected to the server");
+
+            if (!State.Equals(ClientState.LoggedIn))
+                throw new ClientOperationFailedException("Client is not logged in to the server");
+
+            MessageService.AddMessage(new ClientMessage
             {
-                if (value.CredentialsFilled)
-                    _usrCredentials = value;
-            }
-        }
-
-        public Client()
-        {
-            _webSocket = new ClientWebSocket();
-            // [FOR EDIT]
-            _ctSource = new CancellationTokenSource();
-            _ctSource.CancelAfter(TimeSpan.FromSeconds(60));
-            _connected = false;
-            // TODO - import if the user is already registered
-            _usrCredentials = new Credentials();
-            UserList = new List<string>();
-        }
-
-        public async Task ConnectToServer()
-        {
-            _webSocket.Options.RemoteCertificateValidationCallback =
-            (
-                object sender,
-                X509Certificate? certificate,
-                X509Chain? chain,
-                SslPolicyErrors sslPolicyErrors
-            ) =>
-            {
-                if ((sslPolicyErrors & ~SslPolicyErrors.RemoteCertificateChainErrors) != 0)
-                    return false;
-
-                if (certificate is null)
-                    return false;
-
-                const string pub_key_pin =
-                    "04447327fe093b0450bbae0346cf85" +
-                    "fb60491ea04adc1c7d10a49c3397bf" +
-                    "1a2539e7eea6a6b4109a5c62b2df55" +
-                    "003c998b4afb1f103b883f1f649b3b" +
-                    "6530ce8dd7";
-
-                return certificate.GetPublicKeyString().ToLower().Equals(pub_key_pin);
-            };
-
-            await _webSocket.ConnectAsync(new Uri(_serverUrl), _ctSource.Token);
-
-            ServerMessage serverMessage = await ReceiveServerMessageAsync();
-
-            _connected = serverMessage.ServerMessageTypeCase.Equals(Flare.ServerMessage.ServerMessageTypeOneofCase.Hello);
-        }
-
-        public async Task<RegistrationResponse> RegisterToServer(UserRegistration registration)
-        {
-            if (!_connected)
-                return RegistrationResponse.ClientIsNotConnectedToTheServer;
-
-            if (!registration.IsValid)
-                return RegistrationResponse.SubmittedUserRegistrationNotValid;
-
-            var registerRequest = registration.FormRegistrationRequest();
-
-            if (registerRequest is null)
-                return RegistrationResponse.FailedToFormRegisterRequest;
-
-            // Send request to server
-            var clientMessage = new Flare.ClientMessage();
-            clientMessage.RegisterRequest = registerRequest;
-            await SendClientMessageAsync(clientMessage, true);
-
-            // Get server response
-            Flare.ServerMessage serverMessage = await ReceiveServerMessageAsync();
-
-            if (serverMessage.ServerMessageTypeCase != Flare.ServerMessage.ServerMessageTypeOneofCase.RegisterResponse)
-                return RegistrationResponse.ServerRegisterResponseInvalid;
-
-            Flare.RegisterResponse registerResponse = serverMessage.RegisterResponse;
-
-            if (registerResponse.HasDenyReason)
-            {
-                switch (registerResponse.DenyReason)
+                AuthRequest = new AuthRequest
                 {
-                    case Flare.RegisterResponse.Types.RegisterDenyReason.RdrUsernameTaken:
-                        return RegistrationResponse.ServerDenyReasonUsernameTaken;
-                    case Flare.RegisterResponse.Types.RegisterDenyReason.RdrUsernameInvalidSymbols:
-                        return RegistrationResponse.ServerDenyReasonUsernameInvalidSyntax;
-                    case Flare.RegisterResponse.Types.RegisterDenyReason.RdrUsernameInvalidLength:
-                        return RegistrationResponse.ServerDenyReasonUsernameInvalidLength;
-                    case Flare.RegisterResponse.Types.RegisterDenyReason.RdrPasswordBlank:
-                        return RegistrationResponse.ServerDenyReasonPasswordIsBlank;
-                    case Flare.RegisterResponse.Types.RegisterDenyReason.RdrPasswordWeak:
-                        return RegistrationResponse.ServerDenyReasonPasswordIsWeak;
-                    case Flare.RegisterResponse.Types.RegisterDenyReason.RdrUnknown:
-                        return RegistrationResponse.ServerDenyReasonUnknown;
-                    default:
-                        return RegistrationResponse.ServerDenyInterpretationUnknown;
+                    SessionToken = AuthToken
                 }
-            }
+            });
 
-            if (registerResponse.HasAuthToken)
+            MessageService.AddMessage(new ClientMessage
             {
-                _usrCredentials.Username = registration.Username;
-                _usrCredentials.Password = registration.Password;
-                _usrCredentials.AuthToken = registerResponse.AuthToken;
-                return RegistrationResponse.NewUserRegistrationSucceeded;
+                UserListRequest = new UserListRequest()
+            });
+
+            await MessageService.SendMessageAsync(2);
+
+            ServerMessage? response = MessageService.GetServerResponse();
+
+            if (response is null
+                || !response.ServerMessageTypeCase.Equals(ServerMessage.ServerMessageTypeOneofCase.AuthResponse)
+                || !response.AuthResponse.Result.Equals(AuthResult.ArOk))
+            {
+                throw new ClientOperationFailedException("Failed to establish secure session");
             }
 
-            return RegistrationResponse.NewUserRegistrationFailed;
+            AuthToken = (response.AuthResponse.HasNewAuthToken) ? response.AuthResponse.NewAuthToken : AuthToken;
+
+            response = MessageService.GetServerResponse();
+
+            if (response is null)
+                throw new ClientOperationFailedException();
+
+            if (!response.ServerMessageTypeCase.Equals(ServerMessage.ServerMessageTypeOneofCase.UserListResponse))
+                throw new ClientOperationFailedException();
+            
+            foreach (User user in response.UserListResponse.Users)
+                UserDiscoveryList.Add(user);
         }
 
-        public async Task<LoginResponse> LoginToServer()
+        /// <summary>
+        /// Disconnects from server, check <see cref="State"/> if the disconnection was successful.
+        /// </summary>
+        /// <exception cref="ClientOperationFailedException">
+        /// Throw when operation of <see cref="MessageService.Disconnect()"/> fails.
+        /// </exception>
+        public static async Task DisconnectFromServer()
         {
-            if (!_usrCredentials.CredentialsFilled)
-                return LoginResponse.UserCredentialsNotSet;
-
-            var loginRequest = new Flare.LoginRequest();
-            loginRequest.Username = _usrCredentials.Username;
-            loginRequest.Password = _usrCredentials.Password;
-
-            var clientMessage = new Flare.ClientMessage();
-            clientMessage.LoginRequest = loginRequest;
-            await SendClientMessageAsync(clientMessage, true);
-
-            ServerMessage serverMessage = await ReceiveServerMessageAsync();
-
-            if (serverMessage.ServerMessageTypeCase != Flare.ServerMessage.ServerMessageTypeOneofCase.LoginResponse)
-                return LoginResponse.ServerLoginResponseInvalid;
-
-            Flare.LoginResponse loginResponse = serverMessage.LoginResponse;
-
-            if (loginResponse.HasDenyReason)
+            try
             {
-                switch (loginResponse.DenyReason)
-                {
-                    case Flare.LoginResponse.Types.LoginDenyReason.LdrUsernameInvalid:
-                        return LoginResponse.ServerDenyReasonInvalidUsername;
-                    case Flare.LoginResponse.Types.LoginDenyReason.LdrPasswordInvalid:
-                        return LoginResponse.ServerDenyReasonInvalidPassword;
-                    case Flare.LoginResponse.Types.LoginDenyReason.LdrUnknown:
-                        return LoginResponse.ServerDenyReasonUnknown;
-                    default:
-                        return LoginResponse.ServerDenyInterpretationUnknown;
-                }
+                await MessageService.Disconnect();
+                State = ClientState.NotConnected;
             }
-
-            if (loginResponse.HasAuthToken)
+            catch(Exception) 
             {
-                _usrCredentials.AuthToken = loginResponse.AuthToken;
-                return LoginResponse.UserLoginSucceeded;
+                throw new ClientOperationFailedException("Failed to disconnect from server");
             }
-
-            return LoginResponse.UserLoginFailed;
-        }
-
-        public async Task<AuthenticationResponse> TryAuthNewSession()
-        {
-            if (!_usrCredentials.Filled)
-                return AuthenticationResponse.UserCredentialsAuthTokenNotFilled;
-
-            var authRequest = new Flare.AuthRequest();
-            authRequest.SessionToken = _usrCredentials.AuthToken;
-
-            var clientMessage = new Flare.ClientMessage();
-            clientMessage.AuthRequest = authRequest;
-
-            await SendClientMessageAsync(clientMessage, true);
-
-            Flare.ServerMessage serverMessage = await ReceiveServerMessageAsync();
-
-            if (serverMessage.ServerMessageTypeCase != Flare.ServerMessage.ServerMessageTypeOneofCase.AuthResponse)
-                return AuthenticationResponse.ServerAuthResponseInvalid;
-
-            Flare.AuthResponse? authResponse = serverMessage.AuthResponse;
-
-            if (authResponse is null)
-            {
-                return AuthenticationResponse.NewTokenAuthFailed;
-            }
-
-            if (!authResponse.HasNewAuthToken)
-            {
-                switch (authResponse.Result)
-                {
-                    case Flare.AuthResponse.Types.AuthResult.ArOk:
-                        if (authResponse.HasNewAuthToken)
-                        {
-                            _usrCredentials.AuthToken = authResponse.NewAuthToken;
-                            return AuthenticationResponse.UserAuthTokenIsRenewed;
-                        }
-                        return AuthenticationResponse.ServerResponseCurrentUserAuthTokenIsOk;
-                    case Flare.AuthResponse.Types.AuthResult.ArSessionInvalid:
-                        return AuthenticationResponse.ServerDenyUserAuthTokenIsInvalid;
-                    case Flare.AuthResponse.Types.AuthResult.ArSessionExpired:
-                        return AuthenticationResponse.ServerDenyUserAuthTokenExpired;
-                    case Flare.AuthResponse.Types.AuthResult.ArUnknown:
-                        return AuthenticationResponse.ServerDenyUnknown;
-                    default:
-                        return AuthenticationResponse.ServerNewTokenNotReceived;
-                }
-            }
-
-            return AuthenticationResponse.NewTokenAuthFailed;
-        }
-
-        public async Task<UserListResponse> FillUserList()
-        {
-            var isSent = await SendClientMessageAsync(new Flare.ClientMessage
-            {
-                UserListRequest = new Flare.UserListRequest()
-            }, true);
-
-            if (!isSent)
-                return UserListResponse.FailedToSendUserListRequest;
-
-            var serverMessage = await ReceiveServerMessageAsync();
-
-            if (serverMessage is null)
-                return UserListResponse.FailedToReceiveUserListResponse;
-
-            var userList = serverMessage.UserListResponse;
-
-            foreach (var user in userList.Users)
-                UserList.Add(user.Username);
-
-            return UserListResponse.UserListIsFilledSuccessfully;
-        }
-
-        private async Task<bool> SendClientMessageAsync(Flare.ClientMessage message, bool endOfMessage)
-        {
-            // Don't send if the web socket is not open
-            if (!_webSocket.State.Equals(WebSocketState.Open))
-                return false;
-
-            // Convert given message to byte array in protobuf encoding
-            _buffer = message.ToByteArray();
-
-            // Send protobuf byte array through the web socket
-            await _webSocket.SendAsync(_buffer, WebSocketMessageType.Binary, endOfMessage, _ctSource.Token);
-
-            // Message sent successfully
-            return true;
-        }
-
-        private async Task<ServerMessage> ReceiveServerMessageAsync()
-        {
-            _buffer = new byte[KILOBYTE];
-            int offset = 0;
-            int free = _buffer.Length;
-
-            while (true)
-            {
-                _ctSource.TryReset();
-                var response = await _webSocket.ReceiveAsync(new ArraySegment<byte>(_buffer, offset, free), _ctSource.Token);
-
-                if (response.EndOfMessage)
-                {
-                    offset += response.Count;
-                    break;
-                }
-
-                // Enlarge if the received message is bigger than the buffer
-                if (free.Equals(response.Count))
-                {
-                    int newSize = _buffer.Length * 2;
-
-                    if (newSize > 2_000_000)
-                        break;
-
-                    byte[] newBuffer = new byte[newSize];
-                    Array.Copy(_buffer, 0, newBuffer, 0, _buffer.Length);
-
-                    free = newBuffer.Length - _buffer.Length;
-                    offset = _buffer.Length;
-                    _buffer = newBuffer;
-                }
-
-            }
-
-            return ServerMessage.Parser.ParseFrom(_buffer, 0, offset);
         }
     }
 }
