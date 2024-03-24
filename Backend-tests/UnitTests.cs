@@ -1,67 +1,62 @@
-
-using Flare;
-using flare_csharp;
+﻿using flare_csharp;
 using System.Text.RegularExpressions;
-using static flare_csharp.Client;
 
 
 namespace Backend_tests
 {
-    
+
     public class UnitTests
     {
-
-
         [Theory]
         [InlineData("Low Bobikas as42")]
         [InlineData("                ")]
-        [InlineData("LowXXXX Bobas42  �")] 
+        [InlineData("LowXXXX Bobas42  ©")]
         [InlineData("LowBo bas425464654654  654654654  ")]
         [InlineData("Low  Bo  bas   42")]
         public async Task Test_RegisterToServer_Username_NotValid_HasSpaces(string username)
         {
 
             //Arrange
-            Client.Username = username;      
+            Client.Username = username;
             //Act & Assert
             var ex = await Assert.ThrowsAsync<ClientOperationFailedException>(Client.RegisterToServer);
             Assert.Equal("Client username: " + Client.Username + " is not valid", ex.Message);
-            
+
         }
         [Theory]
         [InlineData("")]
         [InlineData(null)]
-        public async void Test_RegisterToServer_Username_NotValid_IsEmptyOrNull(string username1)
+        public async Task Test_RegisterToServer_Username_NotValid_IsEmptyOrNull(string username1)
         {
             //Arrange          
             Client.Username = username1;
             //Act & Assert
             var ex = await Assert.ThrowsAsync<ClientOperationFailedException>(Client.RegisterToServer);
             Assert.Equal("Client username: " + Client.Username + " is not valid", ex.Message);
-            
+
         }
         [Theory]
-        [InlineData("Gala�bongas�78")]
-        [InlineData("Hob�oblinas�45")]
-        [InlineData("LowBob�as42�")]
-        [InlineData("Ho�bGoblinas42�")]
-        [InlineData("Gobl�ingo�nas42�")]
-        public async void Test_RegisterToServer_Username_NotValid_ContainsNotASCIIChar(string username2)
+        [InlineData("GalaÙbongas®78")]
+        [InlineData("HobÜoblinas§45")]
+        [InlineData("LowBobÔas42©")]
+        [InlineData("HoÕbGoblinas42©")]
+        [InlineData("Gobl£ingoÔnas42£")]
+        public async Task Test_RegisterToServer_Username_NotValid_ContainsNotASCIIChar(string username2)
         {
             //Arrange
             Client.Username = username2;
             //Act & Assert
             var ex = await Assert.ThrowsAsync<ClientOperationFailedException>(Client.RegisterToServer);
             Assert.Equal("Client username: " + Client.Username + " is not valid", ex.Message);
-            
+
         }
         [Theory]
         [InlineData("")]
         [InlineData(" MonkaminiDeluxe")]
-        [InlineData("LowBobas4@@@@@@@@@@@@@@2�")]
+        [InlineData("LowBobas4@@@@@@@@@@@@@@2©")]
         [InlineData("LowBobas4444444444444444444444444444444444444444444")]
         [InlineData("LowBobas42sssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssss")]
-        public async void Test_RegisterToServer_Username_NotValid_DoesntMatchRegex(string username3)
+        public async Task Test_RegisterToServer_Username_NotValid_DoesntMatchRegex(string username3)
         {
 
             //Arrange
@@ -75,10 +70,92 @@ namespace Backend_tests
             else
                 Assert.Fail("Username mathches the regex");
 
-           
+
 
         }
+        [Theory]
+        [InlineData("HobÜoblinas§45", "n:+l@/~t}E:~\\7:N}\"ELR.8<9")]
+        [InlineData("Gobl£ingoÔnas42£", "n:+l@/~t}E:~\\7:N}\"ELR.8<9")]
+        [InlineData("HoÕbGoblinas42©", "n:+l@/~t}E:~\\7:N}\"ELR.8<9")]
+        [InlineData("LowBobÔas42©", "n:+l@/~t}E:~\\7:N}\"ELR.8<9")]
+        [InlineData("GalaÙbongas®78£", "n:+l@/~t}E:~\\7:N}\"ELR.8<9")]
+        public async Task Registration_prevented_given_username_containing_non_ASCII_characters(string username4, string password)
+        {
+            Client.Username = username4;
+            Client.Password = password;
+            var ex = await Assert.ThrowsAsync<ClientOperationFailedException>(Client.RegisterToServer);
+            Assert.Equal("Client username: " + Client.Username + " is not valid", ex.Message);
+        }
+        [Theory]
+        [InlineData("LowBobas42sssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssss", "n:+l@/~t}E:~\\7:N}\"ELR.8<9")]
+        [InlineData("LowBobas4444444444444444444444444444444444444444444", "n:+l@/~t}E:~\\7:N}\"ELR.8<9")]
+        [InlineData("ghasjgasjkgbahksgbaskgbaskgbasjgkbasgasgasgas", "n:+l@/~t}E:~\\7:N}\"ELR.8<9")]
+        [InlineData("546484987984684987498746454165489", "n:+l@/~t}E:~\\7:N}\"ELR.8<9")]
+        [InlineData("DidelisMedisKeturiPenkiAstuoniDesimt15!", "n:+l@/~t}E:~\\7:N}\"ELR.8<9")]
 
+        public async Task Registration_prevented_given_username_with_out_of_bounds_length(string username5, string password1)
+        {
+            Client.Username = username5;
+            Client.Password = password1;
+            var ex = await Assert.ThrowsAsync<ClientOperationFailedException>(Client.RegisterToServer);
+            Assert.Equal("Client username: " + Client.Username + " is not valid", ex.Message);
+        }
+        [Theory]
+        [InlineData("LowBobas4546", "n:+l@/~t}E:~\\7:N}\"ELR.8<9")]
+        [InlineData("BaltasL%%%??@4", "n:+l@/~t}E:~\\7:N}\"ELR.8<9")]
+        [InlineData("AsciiNinja123$", "n:+l@/~t}E:~\\7:N}\"ELR.8<9")]
+        [InlineData("User1234!ASCII", "n:+l@/~t}E:~\\7:N}\"ELR.8<9")]
+        [InlineData("herkus_leon_kaselis_3", "n:+l@/~t}E:~\\7:N}\"ELR.8<9")]
+        public async Task Registration_allowed_given_compliant_username(string username6, string password2)
+        {
+            Client.Username = username6;
+            Client.Password = password2;
+            await Client.ConnectToServer();
+            try
+            {
+                await Client.RegisterToServer();
+            }
+            catch (Exception ex)
+            {
+                
+                Assert.Fail(ex.Message);
+            }
+        }
+        [Theory]
+        [InlineData("", "")]
+        public async Task Registration_prevented_given_blank_password(string username7, string password3)
+        {
+            Client.Username = username7;
+            Client.Password = password3;
+        }
+        [Theory]
+        [InlineData("", "")]
+        public async Task Registration_prevented_given_weak_password(string username8, string password4)
+        {
+            Client.Username = username8;
+            Client.Password = password4;
+        }
+        [Theory]
+        [InlineData("", "")]
+        public async Task Registration_prevented_given_too_long_password(string username9, string password5)
+        {
+            Client.Username = username9;
+            Client.Password = password5;
+        }
+        [Theory]
+        [InlineData("", "")]
+        public async Task Registration_allowed_given_ok_password(string username10, string password6)
+        {
+            Client.Username = username10;
+            Client.Password = password6;
+        }
+        [Theory]
+        [InlineData("", "")]
+        public async Task Registration_allowed_given_strong_password(string username11, string password7)
+        {
+            Client.Username = username11;
+            Client.Password = password7;
+        }
 
     }
 }
