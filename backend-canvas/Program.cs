@@ -1,65 +1,50 @@
-﻿using Flare;
-using flare_csharp;
+﻿using flare_csharp;
+using System.Security.Cryptography;
+using System.Text;
+using Isopoh.Cryptography.Argon2;
 
 namespace backend_canvas
 {
     internal class Program
     {
-        static async Task Main(string[] args)
+        static void Main(string[] args)
         {
-            // Just the sandbox
-            Console.WriteLine(Client.State);
+            // User pin
+            string PIN = "12345678";
+            Console.WriteLine($"PIN: {PIN}\n");
 
-            await Client.ConnectToServer();
+            // Hashing PIN in argon2
+            string argon2Hash = Crypto.HashArgon2i(PIN);
+            Console.WriteLine($"Full argon2 hash: {argon2Hash}\n");
 
-            Console.WriteLine(Client.State);
+            // Get the stretched key of the PIN
+            string stretchedKey = argon2Hash.Split('$', StringSplitOptions.RemoveEmptyEntries).Last();
+            Console.WriteLine($"Stretched key: {stretchedKey}\n");
 
-            Client.Username = "herkus_leon_kaselis_3";
-            Client.Password = "n:+l@/~t}E:~\\7:N}\"ELR.8<9";
+            // Left half will become the authorization key
+            string leftSide = stretchedKey.Substring(0, stretchedKey.Length / 2);
+            string authKey = HMACSHA256.HashData(
+                Encoding.ASCII.GetBytes(leftSide),
+                Encoding.ASCII.GetBytes("Authorization Key Encryption")
+                ).ToB64String();
+            Console.WriteLine($"Authorization key: {leftSide} => HMACSHA256 -> {authKey}\n");
 
-            Console.WriteLine("Username is " + Client.UsernameEvaluation);
-            Console.WriteLine("Password is " + Client.PasswordStrength);
+            // Right half will become the genesis key
+            string rightSide = stretchedKey.Substring(stretchedKey.Length / 2, stretchedKey.Length / 2);
+            string genesisKey = HMACSHA256.HashData(
+                Encoding.ASCII.GetBytes(rightSide),
+                Encoding.ASCII.GetBytes("Genesis Key Encryption")
+                ).ToB64String();
+            // "Genesis key: " + rightSide + " => " + genesisKey
+            Console.WriteLine($"Genesis key: {rightSide} => HMACSHA256 -> {genesisKey}\n");
 
-            Console.WriteLine("Registration of " + Client.Username + " started...");
-            try
-            {
-                await Client.RegisterToServer();
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine("Failed to register client to server: " + ex.Message);
-            }
-
-            try
-            {
-                await Client.LoginToServer();
-            }
-            catch(Exception ex)
-            {
-                Console.WriteLine("Failed to log in to server: " + ex.Message);
-            }
-
-            Console.WriteLine("Login successful: " + Client.AuthToken);
-
-            try
-            {
-                await Client.FillUserDiscovery();
-            }
-            catch(Exception)
-            {
-                Console.WriteLine("Failed to get user list");
-            }
-
-            foreach(var user in Client.UserDiscoveryList)
-            {
-                Console.WriteLine(user.ToString());
-            }
-
-            Console.WriteLine(Client.State);
-
-            await Client.DisconnectFromServer();
-
-            Console.WriteLine(Client.State);
+            // Genesis key will be used to hash master key
+            string c = RandomNumberGenerator.GetBytes(32).ToB64String();
+            string masterKey = HMACSHA256.HashData(
+                Encoding.ASCII.GetBytes(genesisKey),
+                Encoding.ASCII.GetBytes(c)
+                ).ToB64String();
+            Console.WriteLine($"Master key: {genesisKey} + {c} => HMACSHA256 -> {masterKey}\n");
         }
     }
 }
