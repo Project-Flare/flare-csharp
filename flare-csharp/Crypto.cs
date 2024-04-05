@@ -54,7 +54,7 @@ namespace flare_csharp
                 Threads = Environment.ProcessorCount,
                 // Convert pin to bytes
                 Password = Encoding.ASCII.GetBytes(pin),
-                // You cannot have an output without a salt, must be >= 8 bytes
+                // You cannot have an output without a salt, must be >= 8 bytes TODO-get timestamp from the server, add "project" Encoding.ASCII.GetBytes("project-flare.net" + username + DateTimeOffset.UtcNow.ToUnixTimeSeconds())
                 Salt = RandomNumberGenerator.GetBytes(16),
                 Secret = Encoding.ASCII.GetBytes("Flare App Csharp"),
                 HashLength = 32
