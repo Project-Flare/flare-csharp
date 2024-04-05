@@ -35,7 +35,6 @@ namespace backend_canvas
                 Encoding.ASCII.GetBytes(rightSide),
                 Encoding.ASCII.GetBytes("Genesis Key Encryption")
                 ).ToB64String();
-            // "Genesis key: " + rightSide + " => " + genesisKey
             Console.WriteLine($"Genesis key: {rightSide} => HMACSHA256 -> {genesisKey}\n");
 
             // Genesis key will be used to hash master key
