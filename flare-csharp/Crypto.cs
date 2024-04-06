@@ -24,20 +24,24 @@ namespace flare_csharp
         /// Derived argon2 hash from a user pin.
         /// Hash is used as server-submittable password for proving ownership of the username.
         /// </summary>
-        /// <param name="pin">8 digit string.</param>
+        /// <param name="password">8 digit string.</param>
         /// <returns></returns>
         /// <exception cref="PinNotAllAsciiDigitsException"></exception>
         /// <exception cref="PinNotEightDigitsException"></exception>
-        public static string HashArgon2i(string pin)
+        public static (string hash, string secureRandom) HashArgon2i(string password, string host, string username)
         {
             // PIN must contain only digits
-            if (!pin.All(x => Char.IsAsciiDigit(x)))
+            if (!password.All(x => Char.IsAsciiDigit(x)))
                 throw new PinNotAllAsciiDigitsException();
 
             // PIN must contain only 8 digits in total
             const int EIGHT_DIGITS = 8;
-            if (pin.Length != EIGHT_DIGITS)
+            if (password.Length != EIGHT_DIGITS)
                 throw new PinNotEightDigitsException();
+
+            string c1 = host + username;
+            string c2 = RandomNumberGenerator.GetBytes(16).ToB64String();
+            string salt = c1 + c2;
 
             // Set the appropriate configuration for hashing PIN code
             Argon2Config argonConfig = new Argon2Config
@@ -53,9 +57,9 @@ namespace flare_csharp
                 // Higher that "Lanes" does not hurt
                 Threads = Environment.ProcessorCount,
                 // Convert pin to bytes
-                Password = Encoding.ASCII.GetBytes(pin),
-                // You cannot have an output without a salt, must be >= 8 bytes TODO-get timestamp from the server, add "project" Encoding.ASCII.GetBytes("project-flare.net" + username + DateTimeOffset.UtcNow.ToUnixTimeSeconds())
-                Salt = RandomNumberGenerator.GetBytes(16),
+                Password = Encoding.ASCII.GetBytes(password),
+                // You cannot have an output without a salt, must be >= 8 bytes TODO-get timestamp from the server, add "project" 
+                Salt = Encoding.ASCII.GetBytes(salt),
                 Secret = Encoding.ASCII.GetBytes("Flare App Csharp"),
                 HashLength = 32
             };
@@ -68,7 +72,7 @@ namespace flare_csharp
                 hashString = argonConfig.EncodeString(hash.Buffer);
             }
 
-            return hashString;
+            return new (hashString, c2);
         }
     }
 }
