@@ -5,8 +5,12 @@ using System.Text;
 
 namespace flare_csharp
 {
-    internal static class Crypto
+    public static class Crypto
     {
+        /// <summary>
+        /// Used to generate password hash with set parameters in <see cref="ClientCredentials"/> class.
+        /// </summary>
+        /// <param name="cred">Credentials to be used to generate argon2 hash for these specific credentials.</param>
         public static void HashPasswordArgon2i(ref ClientCredentials cred)
         {
             cred.SecureRandom = RandomNumberGenerator.GetBytes(16).ToB64String();
