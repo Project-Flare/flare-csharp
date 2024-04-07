@@ -12,4 +12,10 @@
     <ProjectReference Include="..\flare-csharp\flare-csharp.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <None Update="Data.txt">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+
 </Project>
