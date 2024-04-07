@@ -22,7 +22,8 @@ namespace backend_canvas
             Console.WriteLine(requirements);
             string status = await clientManager.CheckUsernameStatusAsync();
             Console.WriteLine(status);
-            await clientManager.RegisterToServer();
+            //await clientManager.RegisterToServer();
+            //await clientManager.LoginToServer();
         }
 
         static List<string> ReadFromFile(string path)

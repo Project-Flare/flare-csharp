@@ -11,6 +11,7 @@ namespace flare_csharp
 {
     public class ClientManager
     {
+        public class ServerRequestFailureException : Exception { }
         public string ServerUrl { get; private set; }
         public string Username { get; set; }
         public string PIN { get; set; }
@@ -35,47 +36,34 @@ namespace flare_csharp
 
         public async Task<string> CheckUsernameStatusAsync()
         {
-            string status = string.Empty;
             try
             {
-                AsyncUnaryCall<UsernameOpinionResponse> call = 
-                    authClient.GetUsernameOpinionAsync(
-                        new UsernameOpinionRequest { Username = this.Username });
-
-                Task<UsernameOpinionResponse> task = call.ResponseAsync;
-                await task;
-
-                status = (task.IsCompletedSuccessfully) ? task.Result.Opinion.ToString() : string.Empty;
+                UsernameOpinionResponse resp = 
+                    await ServerCall<UsernameOpinionResponse>.FulfilUnaryCallAsync(
+                            authClient.GetUsernameOpinionAsync(
+                                new UsernameOpinionRequest { Username = this.Username }));
+                return resp.Opinion.ToString();
             }
-            catch (Exception) 
+            catch (Exception)
             {
-                Console.WriteLine("[ERROR]: failed to get username status.");
+                throw new ServerRequestFailureException();
             }
-
-            return status;
         }
 
         public async Task<string> GetCredentialRequirementsAsync()
         {
-            string req = string.Empty;
-
             try
             {
-                AsyncUnaryCall<RequirementsResponse> call =
-                    authClient.GetCredentialRequirementsAsync(
-                        new RequirementsRequest { });
-
-                Task<RequirementsResponse> task = call.ResponseAsync;
-                await task;
-
-                req = (task.IsCompletedSuccessfully) ? task.Result.ToString() : string.Empty;
+                RequirementsResponse resp =
+                    await ServerCall<RequirementsResponse>.FulfilUnaryCallAsync(
+                        authClient.GetCredentialRequirementsAsync(
+                            new RequirementsRequest { }));
+                return resp.ToString();
             }
             catch (Exception)
             {
-                Console.WriteLine("[ERROR]: failed to get credential requirements.");
+                throw new ServerRequestFailureException();
             }
-
-            return req;
         }
 
         public async Task RegisterToServer()
@@ -127,6 +115,32 @@ namespace flare_csharp
             {
                 Console.WriteLine("[ERROR]: failed to register to server.");
             }
+        }
+
+        public async Task LoginToServer()
+        {
+            var logReq = new LoginRequest
+            {
+                // hardcoded for now
+                Username = "manfredas_lamsargis_2004",
+                Password = "WXYSO1o7wPLNkFk8pnHUENEyyCtV7ehrXCd/t6hyNus"
+            };
+
+            var call = authClient.LoginAsync(logReq);
+
+            var task = call.ResponseAsync;
+            await task;
+
+            var response = (task.IsCompletedSuccessfully) ? task.Result : null;
+
+            if (response is null)
+                return;
+
+            if (response.HasFailure)
+                return;
+
+            this.authToken = response.Token;
+            Console.WriteLine($"Login successful, received token: {authToken}");
         }
 
         public void SaveData()
