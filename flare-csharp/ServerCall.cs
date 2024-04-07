@@ -10,10 +10,14 @@ namespace flare_csharp
 {
     internal static class ServerCall<T>
     {
+        public class TaskNotCompletedSuccessfullyException : Exception { }
         public static async Task<T> FulfilUnaryCallAsync(AsyncUnaryCall<T> call)
         {
             Task<T> task = call.ResponseAsync;
             await task;
+            if (!task.IsCompletedSuccessfully)
+                throw new TaskNotCompletedSuccessfullyException();
+
             return task.Result;
         }
     }

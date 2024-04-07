@@ -12,22 +12,29 @@ namespace flare_csharp
     public class ClientManager
     {
         public class ServerRequestFailureException : Exception { }
+        public class ReceiveServerResponseFailException : Exception { }
+        public class RegistrationFailedException : Exception
+        {
+            public RegistrationFailedException(string reason) : base(reason) { }
+        }
         public string ServerUrl { get; private set; }
-        public string Username { get; set; }
-        public string PIN { get; set; }
+        public string Username { get => clientCredentials.Username; set => clientCredentials.Username = value; }
+        public string PIN { get => clientCredentials.Password; set => clientCredentials.Password = value; }
 
-        private (string fullHash, string c2) argon2iHash;
+        private ClientCredentials clientCredentials;
         private string authToken;
         private GrpcChannel channel;
         private Auth.AuthClient authClient;
 
         public ClientManager(string serverUrl)
         {
+            const int MEM_COST_BYTES = 1024 * 512; // 512MB
+            const int TIME_COST = 3;
+            clientCredentials = new ClientCredentials(MEM_COST_BYTES, TIME_COST);
+
             ServerUrl = new string(serverUrl);
-            Username = string.Empty;
             PIN = string.Empty;
 
-            argon2iHash = (string.Empty, string.Empty);
             authToken = string.Empty;
 
             channel = GrpcChannel.ForAddress(ServerUrl);
@@ -68,55 +75,46 @@ namespace flare_csharp
 
         public async Task RegisterToServer()
         {
+            RegisterResponse? resp = null;
+            Crypto.HashPasswordArgon2i(ref clientCredentials);
+
             try
             {
-                const int MEM_COST_BYTES = 1024 * 512; // 512MB
-                const int TIME_COST = 3;
 
-                this.argon2iHash = Crypto.HashArgon2i(this.PIN, this.ServerUrl, this.Username, MEM_COST_BYTES, TIME_COST);
+                resp =
+                    await ServerCall<RegisterResponse>.FulfilUnaryCallAsync(
+                        authClient.RegisterAsync(
+                            new RegisterRequest
+                            {
+                                Username = clientCredentials.Username,
+                                PasswordHash = clientCredentials.PasswordHash,
+                                HashParams = new HashParams
+                                {
+                                    MemoryCost = (ulong)clientCredentials.MemoryCostBytes,
+                                    TimeCost = (ulong)clientCredentials.TimeCost,
+                                    Salt = clientCredentials.SecureRandom,
+                                    Hash = clientCredentials.PasswordHash
+                                }
+                            }));
 
-                var regReq = new RegisterRequest
-                {
-                    Username = this.Username,
-                    PasswordHash = this.argon2iHash.fullHash.Split('$').Last(),
-                    HashParams = new HashParams
-                    {
-                        MemoryCost = MEM_COST_BYTES,
-                        TimeCost = TIME_COST,
-                        Salt = this.argon2iHash.c2,
-                        Hash = this.argon2iHash.fullHash.Split('$').Last(),
-                    },
-                    IdentityPublicKey = string.Empty
-                };
 
-                var call = authClient.RegisterAsync(regReq);
-
-                var task = call.ResponseAsync;
-                await task;
-
-                var response = (task.IsCompletedSuccessfully) ? task.Result : null;
-
-                if (response is null)
-                    return;
-
-                if (response.HasFailure)
-                {
-                    Console.WriteLine($"Registration failed because {response.Failure}");
-                    return;
-                }
-                else
-                {
-                    this.authToken = response.Token;
-                    Console.WriteLine(argon2iHash);
-                    Console.WriteLine(authToken);
-                }
             }
             catch (Exception)
             {
-                Console.WriteLine("[ERROR]: failed to register to server.");
+                throw new ServerRequestFailureException();
             }
+
+            if (resp is null)
+                throw new ReceiveServerResponseFailException();
+
+            if (resp.HasFailure)
+                throw new RegistrationFailedException(resp.Failure.ToString());
+
+            clientCredentials.AuthToken = resp.Token;
+            SaveData();
         }
 
+        // TODO
         public async Task LoginToServer()
         {
             var logReq = new LoginRequest
@@ -145,7 +143,9 @@ namespace flare_csharp
 
         public void SaveData()
         {
-            throw new NotImplementedException();
+            var writer = new StreamWriter(".\\Data.txt");
+            writer.WriteLine(clientCredentials.ToString());
+            writer.Close();
         }
     }
 }
