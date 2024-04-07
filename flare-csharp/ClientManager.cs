@@ -1,5 +1,6 @@
 ﻿using Grpc.Net.Client;
 using Flare.V1;
+using Grpc.Core;
 
 namespace flare_csharp
 {
@@ -8,7 +9,23 @@ namespace flare_csharp
         /// <summary>
         /// Sending request to the server failed.
         /// </summary>
-        public class ServerRequestFailureException : Exception { }
+        public class GrpcCallFailureException : Exception 
+        {
+            public GrpcCallFailureException() : base() { }
+            public GrpcCallFailureException(string mess, Exception innerEx) : base (mess, innerEx) { } 
+        }
+
+        /// <summary>
+        /// Login credentials of the user are invalid.
+        /// </summary>
+        public class LoginFailureException : Exception 
+        {
+            /// <summary>
+            /// Failure of the login request with the reason why login failed.
+            /// </summary>
+            /// <param name="reason">The reason why the login request was denied by the server.</param>
+            public LoginFailureException(string reason) : base(reason) { }
+        }
 
         /// <summary>
         /// Response is not received or received in bad format.
@@ -20,6 +37,10 @@ namespace flare_csharp
         /// </summary>
         public class RegistrationFailedException : Exception
         {
+            /// <summary>
+            /// Failure to register the user to the server.
+            /// </summary>
+            /// <param name="reason">Reason of why the registration attempt of the client was refused.</param>
             public RegistrationFailedException(string reason) : base(reason) { }
         }
 
@@ -49,11 +70,6 @@ namespace flare_csharp
         private ClientCredentials clientCredentials;
 
         /// <summary>
-        /// Authorization token received from the server that is used to authenticate the session between the client and server.
-        /// </summary>
-        private string authToken;
-
-        /// <summary>
         /// gRPC channel through communication between client and server happens.
         /// </summary>
         private GrpcChannel channel;
@@ -76,8 +92,6 @@ namespace flare_csharp
             ServerUrl = new string(serverUrl);
             PIN = string.Empty;
 
-            authToken = string.Empty;
-
             channel = GrpcChannel.ForAddress(ServerUrl);
             authClient = new Auth.AuthClient(channel);
         }
@@ -88,7 +102,7 @@ namespace flare_csharp
         /// <returns>
         /// <c>Unspecified</c> treat as a server-error, <c>Taken</c> username is already taken, <c>Bad</c> username does not follow the requirements, <c>Ok</c> this username can be used to register a new user.
         /// </returns>
-        /// <exception cref="ServerRequestFailureException">
+        /// <exception cref="GrpcCallFailureException">
         /// The process of sending-receiving failed.
         /// </exception>
         public async Task<string> CheckUsernameStatusAsync()
@@ -103,7 +117,7 @@ namespace flare_csharp
             }
             catch (Exception)
             {
-                throw new ServerRequestFailureException();
+                throw new GrpcCallFailureException();
             }
         }
 
@@ -119,7 +133,7 @@ namespace flare_csharp
         /// </code>
         /// </example>
         /// </returns>
-        /// <exception cref="ServerRequestFailureException"></exception>
+        /// <exception cref="GrpcCallFailureException"></exception>
         public async Task<string> GetCredentialRequirementsAsync()
         {
             try
@@ -132,7 +146,7 @@ namespace flare_csharp
             }
             catch (Exception)
             {
-                throw new ServerRequestFailureException();
+                throw new GrpcCallFailureException();
             }
         }
 
@@ -159,7 +173,7 @@ namespace flare_csharp
         /// To successfully complete the registration request client must define its unique username and check it's status <see cref="CheckUsernameStatusAsync"/> if it fulfils all the requirements.
         /// When password or username are not set, expect errors. If no exceptions are thrown, the registration process is successful, client credentials that contain vital information MUST be stored securely on local device.
         /// </summary>
-        /// <exception cref="ServerRequestFailureException">
+        /// <exception cref="GrpcCallFailureException">
         /// Thrown when there is an error when sending request to the server.
         /// </exception>
         /// <exception cref="ReceiveServerResponseFailException">
@@ -189,13 +203,12 @@ namespace flare_csharp
                                     MemoryCost = (ulong)clientCredentials.MemoryCostBytes,
                                     TimeCost = (ulong)clientCredentials.TimeCost,
                                     Salt = clientCredentials.SecureRandom,
-                                    Hash = clientCredentials.PasswordHash
                                 }
                             }));
             }
             catch (Exception)
             {
-                throw new ServerRequestFailureException();
+                throw new GrpcCallFailureException();
             }
 
             if (resp is null)
@@ -208,31 +221,69 @@ namespace flare_csharp
             SaveData();
         }
 
-        // TODO - not implemented yet
+        /// <summary>
+        /// Logs user to the server if the user is already registered (aka exists).
+        /// </summary>
+        /// <returns></returns>
+        /// <exception cref="GrpcCallFailureException">
+        /// Throws when the gRPC call process aborted.
+        /// </exception>
+        /// <exception cref="LoginFailureException">
+        /// Throws when the login request with current client's credentials has been denied.
+        /// </exception>
         public async Task LoginToServer()
         {
-            var logReq = new LoginRequest
+            LoginResponse resp;
+
+            try
             {
-                // hardcoded for now
-                Username = "manfredas_lamsargis_2004",
-                Password = "WXYSO1o7wPLNkFk8pnHUENEyyCtV7ehrXCd/t6hyNus"
-            };
+                resp =
+                    await ServerCall<LoginResponse>.FulfilUnaryCallAsync(
+                        authClient.LoginAsync(new LoginRequest
+                        {
+                            Username = "new_user23",
+                            Password = "TAtHvSyOhBrgvaMk7LpvDzgnIQpztCqqDemiZ9yOYE8"
+                        })
+                    );
+            }
+            catch (Exception ex)
+            {
+                throw new GrpcCallFailureException(ex.Message, ex);
+            }
 
-            var call = authClient.LoginAsync(logReq);
+            if (resp.HasFailure)
+            {
+                throw new LoginFailureException(resp.Failure.ToString());
+            }
 
-            var task = call.ResponseAsync;
-            await task;
+            if (resp.HasToken)
+            {
+                clientCredentials.AuthToken = resp.Token;
+            }
 
-            var response = (task.IsCompletedSuccessfully) ? task.Result : null;
+            SaveData();
+        }
 
-            if (response is null)
-                return;
+        public async Task<string> GetTokenHealth()
+        {
+            TokenHealthResponse resp;
 
-            if (response.HasFailure)
-                return;
+            try
+            {
+                var metadata = new Metadata
+                {
+                    { "flare-auth", clientCredentials.AuthToken }
+                };
+                resp = await ServerCall<TokenHealthResponse>.FulfilUnaryCallAsync(
+                    authClient.GetTokenHealthAsync(
+                        new TokenHealthRequest { }, headers: metadata));
+            }
+            catch(Exception)
+            {
+                throw new GrpcCallFailureException();
+            }
 
-            this.authToken = response.Token;
-            Console.WriteLine($"Login successful, received token: {authToken}");
+            return resp.Health.ToString();
         }
 
         // Just simple way of saving creds on .txt file (temporary)
