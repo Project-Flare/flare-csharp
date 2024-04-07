@@ -7,6 +7,8 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "flare-csharp", "flare-cshar
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "backend-canvas", "backend-canvas\backend-canvas.csproj", "{1BB12C9B-C5D9-4E30-8B0E-85565808ECB2}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Client_Tests", "Client_Tests\Client_Tests.csproj", "{50D75D61-6F51-441B-B8D2-78717C9FD621}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -21,6 +23,10 @@ Global
 		{1BB12C9B-C5D9-4E30-8B0E-85565808ECB2}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{1BB12C9B-C5D9-4E30-8B0E-85565808ECB2}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{1BB12C9B-C5D9-4E30-8B0E-85565808ECB2}.Release|Any CPU.Build.0 = Release|Any CPU
+		{50D75D61-6F51-441B-B8D2-78717C9FD621}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{50D75D61-6F51-441B-B8D2-78717C9FD621}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{50D75D61-6F51-441B-B8D2-78717C9FD621}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{50D75D61-6F51-441B-B8D2-78717C9FD621}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
