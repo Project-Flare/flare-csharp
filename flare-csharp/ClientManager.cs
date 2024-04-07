@@ -254,6 +254,15 @@ namespace flare_csharp
             SaveData();
         }
 
+        /// <summary>
+        /// Checks user's token health.
+        /// </summary>
+        /// <returns>
+        /// <c>Unspecified</c> unknown error, <c>Dead</c> the token is expired or invalid, <c>Ok</c> token is correct.
+        /// </returns>
+        /// <exception cref="GrpcCallFailureException">
+        /// Throws when an error occurs on the gRPC call.
+        /// </exception>
         public async Task<string> GetTokenHealth()
         {
             TokenHealthResponse resp;
@@ -274,6 +283,33 @@ namespace flare_csharp
             }
 
             return resp.Health.ToString();
+        }
+
+        /// <summary>
+        /// Send request to server to renew the server-issued token for client.
+        /// </summary>
+        /// <returns></returns>
+        /// <exception cref="GrpcCallFailureException">The gRPC call of request failed.</exception>
+        public async Task RenewToken()
+        {
+            RenewTokenResponse resp;
+
+            try
+            {
+                resp = await ServerCall<RenewTokenResponse>.FulfilUnaryCallAsync(
+                    authClient.RenewTokenAsync(
+                        new RenewTokenRequest { },
+                        headers: new Metadata
+                        {
+                            { "flare-auth", clientCredentials.AuthToken }
+                        }));
+            }
+            catch(Exception ex)
+            {
+                throw new GrpcCallFailureException(ex.Message, ex);
+            }
+
+            clientCredentials.AuthToken = resp.Token;
         }
 
         // Just simple way of saving creds on .txt file (temporary)

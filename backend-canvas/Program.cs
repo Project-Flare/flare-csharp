@@ -11,6 +11,7 @@ namespace backend_canvas
             var clientManager = new ClientManager("https://rpc.f2.project-flare.net");
             await clientManager.LoginToServer();
             await clientManager.GetTokenHealth();
+            await clientManager.RenewToken();
         }
     }
 }
