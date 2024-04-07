@@ -17,7 +17,7 @@ namespace flare_csharp
             string salt = cred.PseudoRandomConstant + cred.SecureRandom;
 
             // Set the appropriate configuration for hashing PIN code
-            Argon2Config argonConfig = new Argon2Config
+            Argon2Config argonConfig = new()
             {
                 // Slightly slower, but is safe from side-channel attacks
                 Type = Argon2Type.DataIndependentAddressing,

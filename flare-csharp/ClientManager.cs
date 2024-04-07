@@ -1,6 +1,7 @@
 ﻿using Grpc.Net.Client;
 using Flare.V1;
 using Grpc.Core;
+using Org.BouncyCastle.Math.EC.Rfc8032;
 
 namespace flare_csharp
 {
@@ -26,11 +27,6 @@ namespace flare_csharp
             /// <param name="reason">The reason why the login request was denied by the server.</param>
             public LoginFailureException(string reason) : base(reason) { }
         }
-
-        /// <summary>
-        /// Response is not received or received in bad format.
-        /// </summary>
-        public class ReceiveServerResponseFailException : Exception { }
 
         /// <summary>
         /// The registration of new user operation failed, specifically used in <see cref="RegisterToServer"/>
@@ -115,9 +111,9 @@ namespace flare_csharp
                                 new UsernameOpinionRequest { Username = this.Username }));
                 return resp.Opinion.ToString();
             }
-            catch (Exception)
+            catch (Exception ex)
             {
-                throw new GrpcCallFailureException();
+                throw new GrpcCallFailureException(ex.Message, ex);
             }
         }
 
@@ -144,9 +140,9 @@ namespace flare_csharp
                             new RequirementsRequest { }));
                 return resp.ToString();
             }
-            catch (Exception)
+            catch (Exception ex)
             {
-                throw new GrpcCallFailureException();
+                throw new GrpcCallFailureException(ex.Message, ex);
             }
         }
 
@@ -176,9 +172,6 @@ namespace flare_csharp
         /// <exception cref="GrpcCallFailureException">
         /// Thrown when there is an error when sending request to the server.
         /// </exception>
-        /// <exception cref="ReceiveServerResponseFailException">
-        /// Thrown when there is an error on the receiving response from the server.
-        /// </exception>
         /// <exception cref="RegistrationFailedException">
         /// Thrown when server refused to accept new registration with set credentials.
         /// </exception>
@@ -186,7 +179,7 @@ namespace flare_csharp
         {
             HashPassword();
 
-            RegisterResponse? resp = null;
+            RegisterResponse resp;
 
             try
             {
@@ -206,13 +199,10 @@ namespace flare_csharp
                                 }
                             }));
             }
-            catch (Exception)
+            catch (Exception ex)
             {
-                throw new GrpcCallFailureException();
+                throw new GrpcCallFailureException(ex.Message, ex);
             }
-
-            if (resp is null)
-                throw new ReceiveServerResponseFailException();
 
             if (resp.HasFailure)
                 throw new RegistrationFailedException(resp.Failure.ToString());
@@ -278,9 +268,9 @@ namespace flare_csharp
                     authClient.GetTokenHealthAsync(
                         new TokenHealthRequest { }, headers: metadata));
             }
-            catch(Exception)
+            catch(Exception ex)
             {
-                throw new GrpcCallFailureException();
+                throw new GrpcCallFailureException(ex.Message, ex);
             }
 
             return resp.Health.ToString();
