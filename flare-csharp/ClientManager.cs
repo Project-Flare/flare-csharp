@@ -237,8 +237,8 @@ namespace flare_csharp
                     await ServerCall<LoginResponse>.FulfilUnaryCallAsync(
                         authClient.LoginAsync(new LoginRequest
                         {
-                            Username = "new_user23",
-                            Password = "TAtHvSyOhBrgvaMk7LpvDzgnIQpztCqqDemiZ9yOYE8"
+                            Username = clientCredentials.Username,
+                            Password = clientCredentials.Password
                         })
                     );
             }
