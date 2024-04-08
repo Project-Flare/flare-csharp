@@ -12,7 +12,7 @@ namespace backend_canvas
             clientManager.Password = "dscbhbaerbyuifb896Q32GQBWHB";
             clientManager.Username = "neilas_labanauskas_8000";
             await clientManager.RegisterToServerAsync();
-            await clientManager.RemoveUserFromServerAsync();
+            await clientManager.RemoveUserFromServerAsync(false);
         }
     }
 }
