@@ -23,7 +23,7 @@ namespace Client_Tests
             ClientManager manager = new ClientManager("https://rpc.f2.project-flare.net");
 
             manager.Username = username1; 
-            manager.PIN = pin1;
+            manager.Password = pin1;
 
             string status = await manager.CheckUsernameStatusAsync();
 
@@ -40,7 +40,7 @@ namespace Client_Tests
             ClientManager manager = new ClientManager("https://rpc.f2.project-flare.net");
 
             manager.Username = username2;
-            manager.PIN = pin2;
+            manager.Password = pin2;
 
             string status = await manager.CheckUsernameStatusAsync();
 
@@ -58,7 +58,7 @@ namespace Client_Tests
             ClientManager manager = new ClientManager("https://rpc.f2.project-flare.net");
 
             manager.Username = username3;
-            manager.PIN = pin3;
+            manager.Password = pin3;
 
             string status = await manager.CheckUsernameStatusAsync();
 
@@ -76,7 +76,7 @@ namespace Client_Tests
             ClientManager manager = new ClientManager("https://rpc.f2.project-flare.net");
 
             manager.Username = username4;
-            manager.PIN = pin4;
+            manager.Password = pin4;
 
             string status = await manager.CheckUsernameStatusAsync();
 
@@ -93,13 +93,13 @@ namespace Client_Tests
             ClientManager manager = new ClientManager("https://rpc.f2.project-flare.net");
 
             manager.Username = username5;
-            manager.PIN = pin5;
+            manager.Password = pin5;
 
             string status = await manager.CheckUsernameStatusAsync();
 
             if (status != "Taken")
             {
-                await manager.RegisterToServer();
+                await manager.RegisterToServerAsync();
             }
             status = await manager.CheckUsernameStatusAsync();
 

@@ -2,6 +2,7 @@
 using Flare.V1;
 using Grpc.Core;
 using Org.BouncyCastle.Math.EC.Rfc8032;
+using System.Runtime.CompilerServices;
 
 namespace flare_csharp
 {
@@ -10,16 +11,21 @@ namespace flare_csharp
         /// <summary>
         /// Sending request to the server failed.
         /// </summary>
-        public class GrpcCallFailureException : Exception 
+        public class GrpcCallFailureException : Exception
         {
             public GrpcCallFailureException() : base() { }
-            public GrpcCallFailureException(string mess, Exception innerEx) : base (mess, innerEx) { } 
+            public GrpcCallFailureException(string mess, Exception innerEx) : base(mess, innerEx) { }
         }
+
+        /// <summary>
+        /// The request to remove all data from the server failed.
+        /// </summary>
+        public class FailedToWipeUserDataFromServerException : Exception { }
 
         /// <summary>
         /// Login credentials of the user are invalid.
         /// </summary>
-        public class LoginFailureException : Exception 
+        public class LoginFailureException : Exception
         {
             /// <summary>
             /// Failure of the login request with the reason why login failed.
@@ -29,7 +35,7 @@ namespace flare_csharp
         }
 
         /// <summary>
-        /// The registration of new user operation failed, specifically used in <see cref="RegisterToServer"/>
+        /// The registration of new user operation failed, specifically used in <see cref="RegisterToServerAsync"/>
         /// </summary>
         public class RegistrationFailedException : Exception
         {
@@ -56,9 +62,9 @@ namespace flare_csharp
         public string Username { get => clientCredentials.Username; set => clientCredentials.Username = value; }
 
         /// <summary>
-        /// Client's PIN code, used to generate as password.
+        /// Client's password, used to generate password hash.
         /// </summary>
-        public string PIN { get => clientCredentials.Password; set => clientCredentials.Password = value; }
+        public string Password { get => clientCredentials.Password; set => clientCredentials.Password = value; }
 
         /// <summary>
         /// This holds important credential information of the client.
@@ -86,7 +92,7 @@ namespace flare_csharp
             clientCredentials = new ClientCredentials(MEM_COST_BYTES, TIME_COST);
 
             ServerUrl = new string(serverUrl);
-            PIN = string.Empty;
+            Password = string.Empty;
 
             channel = GrpcChannel.ForAddress(ServerUrl);
             authClient = new Auth.AuthClient(channel);
@@ -105,7 +111,7 @@ namespace flare_csharp
         {
             try
             {
-                UsernameOpinionResponse resp = 
+                UsernameOpinionResponse resp =
                     await ServerCall<UsernameOpinionResponse>.FulfilUnaryCallAsync(
                             authClient.GetUsernameOpinionAsync(
                                 new UsernameOpinionRequest { Username = this.Username }));
@@ -147,7 +153,7 @@ namespace flare_csharp
         }
 
         /// <summary>
-        /// Correctly specified user credentials will be hashed by secure argon2i, <see cref="PIN"/> must be set and will be used as password to generate password hash. 
+        /// Correctly specified user credentials will be hashed by secure argon2i, <see cref="Password"/> must be set and will be used as password to generate password hash. 
         /// </summary>
         /// <exception cref="WrongCredentialsForArgon2Hash">
         /// Thrown when the credential parameters or password do not match the requirements to securely hash password using <see cref="Crypto.HashPasswordArgon2i(ref ClientCredentials)"/>
@@ -175,7 +181,7 @@ namespace flare_csharp
         /// <exception cref="RegistrationFailedException">
         /// Thrown when server refused to accept new registration with set credentials.
         /// </exception>
-        public async Task RegisterToServer()
+        public async Task RegisterToServerAsync()
         {
             HashPassword();
 
@@ -221,7 +227,7 @@ namespace flare_csharp
         /// <exception cref="LoginFailureException">
         /// Throws when the login request with current client's credentials has been denied.
         /// </exception>
-        public async Task LoginToServer()
+        public async Task LoginToServerAsync()
         {
             LoginResponse resp;
 
@@ -263,7 +269,7 @@ namespace flare_csharp
         /// <exception cref="GrpcCallFailureException">
         /// Throws when an error occurs on the gRPC call.
         /// </exception>
-        public async Task<string> GetTokenHealth()
+        public async Task<string> GetTokenHealthAsync()
         {
             TokenHealthResponse resp;
 
@@ -277,7 +283,7 @@ namespace flare_csharp
                     authClient.GetTokenHealthAsync(
                         new TokenHealthRequest { }, headers: metadata));
             }
-            catch(Exception ex)
+            catch (Exception ex)
             {
                 throw new GrpcCallFailureException(ex.Message, ex);
             }
@@ -290,7 +296,7 @@ namespace flare_csharp
         /// </summary>
         /// <returns></returns>
         /// <exception cref="GrpcCallFailureException">The gRPC call of request failed.</exception>
-        public async Task RenewToken()
+        public async Task RenewTokenAsync()
         {
             RenewTokenResponse resp;
 
@@ -304,12 +310,35 @@ namespace flare_csharp
                             { "flare-auth", clientCredentials.AuthToken }
                         }));
             }
-            catch(Exception ex)
+            catch (Exception ex)
             {
                 throw new GrpcCallFailureException(ex.Message, ex);
             }
 
             clientCredentials.AuthToken = resp.Token;
+        }
+
+        /// <summary>
+        /// Removes all data of the user from the server database and the client's username can be reused.
+        /// </summary>
+        /// <param name="lockUsername">
+        /// <c>true</c> if username can't be used (locking other registrations that have the same username), <c>false</c> if other
+        /// user can be registered to server with the same username.
+        /// </param>
+        /// <returns></returns>
+        /// <exception cref="FailedToWipeUserDataFromServerException">
+        /// Failed to wipe user data from the server.
+        /// </exception>
+        public async Task RemoveUserFromServerAsync(bool lockUsername)
+        {
+            var resp = await ServerCall<ObliviateResponse>.FulfilUnaryCallAsync(
+                authClient.ObliviateAsync(
+                    new ObliviateRequest { Lockdown = lockUsername },
+                    headers: new Metadata { { "flare-auth", clientCredentials.AuthToken } }
+                ));
+
+            if (resp.Result != ObliviateResponse.Types.ObliviateResult.OkUnlocked)
+                throw new FailedToWipeUserDataFromServerException();
         }
 
         // Just simple way of saving creds on .txt file (temporary)
