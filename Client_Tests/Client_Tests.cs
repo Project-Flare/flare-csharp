@@ -82,6 +82,32 @@ namespace Client_Tests
 
             Assert.Equal("Ok", status);
         }
-        
+        [Theory]
+        [InlineData("BaltasLapasss14", "65481277")]
+        [InlineData("GerasVardas78", "67481277")]
+        [InlineData("DidelisT87omas", "65433277")]
+        [InlineData("Popierius14", "65499277")]
+        [InlineData("low_bobas_14", "64481277")]
+        public async Task Registration_prevented_given_taken_username(string username5, string pin5)
+        {
+            ClientManager manager = new ClientManager("https://rpc.f2.project-flare.net");
+
+            manager.Username = username5;
+            manager.PIN = pin5;
+
+            string status = await manager.CheckUsernameStatusAsync();
+
+            if (status != "Taken")
+            {
+                await manager.RegisterToServer();
+            }
+            status = await manager.CheckUsernameStatusAsync();
+
+            Assert.Equal("Taken", status);
+
+           
+        }
+
+
     }
 }
