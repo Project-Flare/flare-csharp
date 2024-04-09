@@ -12,11 +12,11 @@ namespace Client_Tests
     {
 
         [Theory]
-        [InlineData("llllllllllllllllllllllllllllllllllllllllllllllllllllllllllÆ78", "65481234")]
-        [InlineData("HobGoblinasssssssssssssssssssssssssssssssssssssss", "67481234")]
-        [InlineData("LowBobasssssssssssssssssssssssssssssssssssssssssssssssss", "62481234")]
-        [InlineData("HobGoblsasasgasasinasssssssssssssssssssssssssssssssssssssss", "65488234")]
-        [InlineData("Kreveteeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee", "65481934")]
+        [InlineData("llllllllllllllllllllllllllllllllllllllllllllllllllllllllllÆ78", "dscbhbaerbyuifb896Q32GQBWHB")]
+        [InlineData("HobGoblinasssssssssssssssssssssssssssssssssssssss", "dscbhbaerbyuifb896Q32GQBWHB")]
+        [InlineData("LowBobasssssssssssssssssssssssssssssssssssssssssssssssss", "dscbhbaerbyuifb896Q32GQBWHB")]
+        [InlineData("HobGoblsasasgasasinasssssssssssssssssssssssssssssssssssssss", "dscbhbaerbyuifb896Q32GQBWHB")]
+        [InlineData("Kreveteeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee", "dscbhbaerbyuifb896Q32GQBWHB")]
         public async void Registration_failed_given_username_with_out_of_bounds_length(string username1, string pin1)
         {      
 
@@ -30,11 +30,11 @@ namespace Client_Tests
             Assert.Equal("Bad", status);
         }
         [Theory]
-        [InlineData("Hob‹oblinasß45", "65481234")]
-        [InlineData("Gobl£ingo‘nas42£", "67481234")]
-        [InlineData("Ho’bGoblinas42©", "62481234")]
-        [InlineData("LowBob‘as42©", "65488234")]
-        [InlineData("Low£Bobas42©", "65481934")]
+        [InlineData("Hob‹oblinasß45", "dscbhbaerbyuifb896Q32GQBWHB")]
+        [InlineData("Gobl£ingo‘nas42£", "dscbhbaerbyuifb896Q32GQBWHB")]
+        [InlineData("Ho’bGoblinas42©", "dscbhbaerbyuifb896Q32GQBWHB")]
+        [InlineData("LowBob‘as42©", "dscbhbaerbyuifb896Q32GQBWHB")]
+        [InlineData("Low£Bobas42©", "dscbhbaerbyuifb896Q32GQBWHB")]
         public async Task Registration_prevented_given_username_containing_non_ASCII_characters(string username2, string pin2)
         {
             ClientManager manager = new ClientManager("https://rpc.f2.project-flare.net");
@@ -48,11 +48,11 @@ namespace Client_Tests
         }
 
         [Theory]
-        [InlineData("GerasSlaptazodis!", "65481234")]
-        [InlineData("Blogas$Slaptazodis#", "67481234")]
-        [InlineData("#$!'[]", "62481234")]
-        [InlineData("Yep()keturi*", "65488234")]
-        [InlineData("NeVienas(,)", "65481934")]
+        [InlineData("GerasSlaptazodis!", "dscbhbaerbyuifb896Q32GQBWHB")]
+        [InlineData("Blogas$Slaptazodis#", "dscbhbaerbyuifb896Q32GQBWHB")]
+        [InlineData("#$!'[]", "dscbhbaerbyuifb896Q32GQBWHB")]
+        [InlineData("Yep()keturi*", "dscbhbaerbyuifb896Q32GQBWHB")]
+        [InlineData("NeVienas(,)", "dscbhbaerbyuifb896Q32GQBWHB")]
         public async Task Registration_prevented_given_username_containing_non_alphanumerics(string username3, string pin3)
         {
             ClientManager manager = new ClientManager("https://rpc.f2.project-flare.net");
@@ -66,11 +66,11 @@ namespace Client_Tests
         }
 
         [Theory]
-        [InlineData("LowBobas4546", "65481234")]
-        [InlineData("BaltasL_4", "65481934")]
-        [InlineData("AsciiNinja123", "65411234")]
-        [InlineData("User1234ASCII_", "65481277")]
-        [InlineData("S", "67881234")]
+        [InlineData("LowBobas4896", "dscbhbaerbyuifb896Q32GQBHB")]
+        [InlineData("BaltasL_445", "dcbhbaerbyuifb896Q32GQBWHB")]
+        [InlineData("AsciiNinja12345", "dscbhaerbyuifb896Q32GQBWHB")]
+        [InlineData("Herkus_Leon", "dscbhbaebyuifb896Q32GQBWHB")]
+        [InlineData("SSS", "dscbhbaerbyuifb896Q32GBWHB")]
         public async Task Registration_allowed_given_compliant_username(string username4, string pin4)
         {
             ClientManager manager = new ClientManager("https://rpc.f2.project-flare.net");
@@ -81,13 +81,14 @@ namespace Client_Tests
             string status = await manager.CheckUsernameStatusAsync();
 
             Assert.Equal("Ok", status);
+
         }
         [Theory]
-        [InlineData("BaltasLapasss14", "65481277")]
-        [InlineData("GerasVardas78", "67481277")]
-        [InlineData("DidelisT87omas", "65433277")]
-        [InlineData("Popierius14", "65499277")]
-        [InlineData("low_bobas_14", "64481277")]
+        [InlineData("BaltasLapasss14", "dscbhbaerbyuifb896Q32GQBWHB")]
+        [InlineData("GerasVardas78", "dscbhbaerbyuifb896Q32GQBWHB")]
+        [InlineData("DidelisT87omas", "dscbhbaerbyuifb896Q32GQBWHB")]
+        [InlineData("Popierius14", "dscbhbaerbyuifb896Q32GQBWHB")]
+        [InlineData("low_bobas_14", "dscbhbaerbyuifb896Q32GQBWHB")]
         public async Task Registration_prevented_given_taken_username(string username5, string pin5)
         {
             ClientManager manager = new ClientManager("https://rpc.f2.project-flare.net");
@@ -107,6 +108,72 @@ namespace Client_Tests
 
            
         }
+        [Theory]
+        [InlineData("Baltas_Lapas_14", "")]
+        [InlineData("Geras_Katinas_13", "")]
+        [InlineData("neilas_labanauskas_8000", "")]
+        [InlineData("Astuoni_Keturi", "")]
+        [InlineData("Vienas_Du_3", "")]
+        public async Task Registration_prevented_given_blank_password(string username6, string pin6)
+        {
+            ClientManager manager = new ClientManager("https://rpc.f2.project-flare.net");
+
+            manager.Username = username6;
+            manager.Password = pin6;
+
+            await Assert.ThrowsAsync<RegistrationFailedException>(manager.RegisterToServerAsync);
+
+
+        }
+        [Theory]
+        [InlineData("Juodas_Lapas_14", "dscbhbaerbyuifb896Q32GQBWHB")]
+        [InlineData("Blogas_Katinas_13", "dscbhbaerbyuifb896Q32GQBWHB")]
+        [InlineData("geilas_labanauskas_8000", "dscbhbaerbyuifb896Q32GQBWHB")]
+        [InlineData("Devyni_Keturi", "dscbhbaerbyuifb896Q32GQBWHB")]
+        [InlineData("Keturi_Du_3", "dscbhbaerbyuifb896Q32GQBWHB")]
+        public async Task Login_prevented_given_user_is_not_registered(string username7, string pin7)
+        {
+            ClientManager manager = new ClientManager("https://rpc.f2.project-flare.net");
+
+            manager.Username = username7;
+            manager.Password = pin7;
+
+            await Assert.ThrowsAsync<LoginFailureException>(manager.LoginToServerAsync);
+        }
+        [Theory]
+        [InlineData("tempuserTemp1", "dscbhbaerbyuifb896Q32GQBWHB")]
+        [InlineData("tempuserTemp2", "dscbhbaerbyuifb896Q32GQBWHB")]
+        [InlineData("tempuserTemp3", "dscbhbaerbyuifb896Q32GQBWHB")]
+        [InlineData("tempuserTemp4", "dscbhbaerbyuifb896Q32GQBWHB")]
+        [InlineData("tempuserTemp5", "dscbhbaerbyuifb896Q32GQBWHB")]
+        public async Task Login_successful_given_user_is_registered(string username8, string pin8)
+        {
+            ClientManager manager = new ClientManager("https://rpc.f2.project-flare.net");
+
+            manager.Username = username8;
+            manager.Password = pin8;
+
+            string status = await manager.CheckUsernameStatusAsync();
+
+            if (status != "Taken")
+            {
+                await manager.RegisterToServerAsync();
+            }
+            try
+            {
+                await manager.LoginToServerAsync();
+            }
+            catch (LoginFailureException ex)
+            {
+                Assert.Fail(ex.Message);
+            }
+            finally
+            {
+                await manager.RemoveUserFromServerAsync(false);
+            }
+           
+        }
+
 
 
     }
