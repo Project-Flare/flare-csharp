@@ -239,7 +239,7 @@ namespace flare_csharp
                         authClient.LoginAsync(new LoginRequest
                         {
                             Username = Credentials.Username,
-                            Password = Credentials.Password
+                            Password = Credentials.PasswordHash
                         })
                     );
             }
