@@ -11,7 +11,7 @@ namespace flare_csharp
         /// Used to generate password hash with set parameters in <see cref="ClientCredentials"/> class.
         /// </summary>
         /// <param name="cred">Credentials to be used to generate argon2 hash for these specific credentials.</param>
-        public static void HashPasswordArgon2i(ref ClientCredentials cred)
+        public static void HashPasswordArgon2i(ClientCredentials cred)
         {
             cred.SecureRandom = RandomNumberGenerator.GetBytes(16).ToB64String();
             string salt = cred.PseudoRandomConstant + cred.SecureRandom;

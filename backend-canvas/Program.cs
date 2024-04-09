@@ -9,10 +9,9 @@ namespace backend_canvas
             System.Environment.SetEnvironmentVariable("DOTNET_SYSTEM_NET_HTTP_SOCKETSHTTPHANDLER_HTTP2SUPPORT", "1");
 
             var clientManager = new ClientManager("https://rpc.f2.project-flare.net");
-            clientManager.Password = "dscbhbaerbyuifb896Q32GQBWHB";
-            clientManager.Username = "neilas_labanauskas_8000";
+            clientManager.Password = "190438934";
+            clientManager.Username = "testing_user_4";
             await clientManager.RegisterToServerAsync();
-            await clientManager.RemoveUserFromServerAsync(false);
         }
     }
 }

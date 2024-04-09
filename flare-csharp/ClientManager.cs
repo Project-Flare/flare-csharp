@@ -59,17 +59,17 @@ namespace flare_csharp
         /// <summary>
         /// Client's username.
         /// </summary>
-        public string Username { get => clientCredentials.Username; set => clientCredentials.Username = value; }
+        public string Username { get => Credentials.Username; set => Credentials.Username = value; }
 
         /// <summary>
         /// Client's password, used to generate password hash.
         /// </summary>
-        public string Password { get => clientCredentials.Password; set => clientCredentials.Password = value; }
+        public string Password { get => Credentials.Password; set => Credentials.Password = value; }
 
         /// <summary>
         /// This holds important credential information of the client.
         /// </summary>
-        private ClientCredentials clientCredentials;
+        public ClientCredentials Credentials { get; set; }
 
         /// <summary>
         /// gRPC channel through communication between client and server happens.
@@ -89,7 +89,7 @@ namespace flare_csharp
         {
             const int MEM_COST_BYTES = 1024 * 512; // 512MB
             const int TIME_COST = 3;
-            clientCredentials = new ClientCredentials(MEM_COST_BYTES, TIME_COST);
+            Credentials = new ClientCredentials(MEM_COST_BYTES, TIME_COST);
 
             ServerUrl = new string(serverUrl);
             Password = string.Empty;
@@ -163,7 +163,7 @@ namespace flare_csharp
         {
             try
             {
-                Crypto.HashPasswordArgon2i(ref clientCredentials);
+                Crypto.HashPasswordArgon2i(Credentials);
             }
             catch (Exception)
             {
@@ -184,6 +184,8 @@ namespace flare_csharp
         /// </exception>
         public async Task RegisterToServerAsync()
         {
+            HashPassword();
+
             RegisterResponse resp;
 
             try
@@ -194,13 +196,13 @@ namespace flare_csharp
                         authClient.RegisterAsync(
                             new RegisterRequest
                             {
-                                Username = clientCredentials.Username,
-                                PasswordHash = clientCredentials.PasswordHash,
+                                Username = Credentials.Username,
+                                PasswordHash = Credentials.PasswordHash,
                                 HashParams = new HashParams
                                 {
-                                    MemoryCost = (ulong)clientCredentials.MemoryCostBytes,
-                                    TimeCost = (ulong)clientCredentials.TimeCost,
-                                    Salt = clientCredentials.SecureRandom,
+                                    MemoryCost = (ulong)Credentials.MemoryCostBytes,
+                                    TimeCost = (ulong)Credentials.TimeCost,
+                                    Salt = Credentials.SecureRandom,
                                 }
                             }));
             }
@@ -212,7 +214,7 @@ namespace flare_csharp
             if (resp.HasFailure)
                 throw new RegistrationFailedException(resp.Failure.ToString());
 
-            clientCredentials.AuthToken = resp.Token;
+            Credentials.AuthToken = resp.Token;
             SaveData();
         }
 
@@ -236,8 +238,8 @@ namespace flare_csharp
                     await ServerCall<LoginResponse>.FulfilUnaryCallAsync(
                         authClient.LoginAsync(new LoginRequest
                         {
-                            Username = clientCredentials.Username,
-                            Password = clientCredentials.Password
+                            Username = Credentials.Username,
+                            Password = Credentials.Password
                         })
                     );
             }
@@ -253,7 +255,7 @@ namespace flare_csharp
 
             if (resp.HasToken)
             {
-                clientCredentials.AuthToken = resp.Token;
+                Credentials.AuthToken = resp.Token;
             }
 
             SaveData();
@@ -276,7 +278,7 @@ namespace flare_csharp
             {
                 var metadata = new Metadata
                 {
-                    { "flare-auth", clientCredentials.AuthToken }
+                    { "flare-auth", Credentials.AuthToken }
                 };
                 resp = await ServerCall<TokenHealthResponse>.FulfilUnaryCallAsync(
                     authClient.GetTokenHealthAsync(
@@ -306,7 +308,7 @@ namespace flare_csharp
                         new RenewTokenRequest { },
                         headers: new Metadata
                         {
-                            { "flare-auth", clientCredentials.AuthToken }
+                            { "flare-auth", Credentials.AuthToken }
                         }));
             }
             catch (Exception ex)
@@ -314,7 +316,7 @@ namespace flare_csharp
                 throw new GrpcCallFailureException(ex.Message, ex);
             }
 
-            clientCredentials.AuthToken = resp.Token;
+            Credentials.AuthToken = resp.Token;
         }
 
         /// <summary>
@@ -333,7 +335,7 @@ namespace flare_csharp
             var resp = await ServerCall<ObliviateResponse>.FulfilUnaryCallAsync(
                 authClient.ObliviateAsync(
                     new ObliviateRequest { Lockdown = lockUsername },
-                    headers: new Metadata { { "flare-auth", clientCredentials.AuthToken } }
+                    headers: new Metadata { { "flare-auth", Credentials.AuthToken } }
                 ));
 
             if (resp.Result != ObliviateResponse.Types.ObliviateResult.OkUnlocked)
@@ -344,7 +346,7 @@ namespace flare_csharp
         public void SaveData()
         {
             var writer = new StreamWriter(".\\Data.txt");
-            writer.WriteLine(clientCredentials.ToString());
+            writer.WriteLine(Credentials.ToString());
             writer.Close();
         }
     }
