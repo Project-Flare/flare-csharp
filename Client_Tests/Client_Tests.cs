@@ -12,7 +12,7 @@ namespace Client_Tests
     {
 
         [Theory]
-        [InlineData("llllllllllllllllllllllllllllllllllllllllllllllllllllllllll®78", "dscbhbaerbyuifb896Q32GQBWHB")]
+        [InlineData("llllllllllllllllllllllllllllllllllllllllllllllllllllllllll78", "dscbhbaerbyuifb896Q32GQBWHB")]
         [InlineData("HobGoblinasssssssssssssssssssssssssssssssssssssss", "dscbhbaerbyuifb896Q32GQBWHB")]
         [InlineData("LowBobasssssssssssssssssssssssssssssssssssssssssssssssss", "dscbhbaerbyuifb896Q32GQBWHB")]
         [InlineData("HobGoblsasasgasasinasssssssssssssssssssssssssssssssssssssss", "dscbhbaerbyuifb896Q32GQBWHB")]
@@ -141,17 +141,18 @@ namespace Client_Tests
             await Assert.ThrowsAsync<LoginFailureException>(manager.LoginToServerAsync);
         }
         [Theory]
-        [InlineData("tempuserTemp1", "dscbhbaerbyuifb896Q32GQBWHB")]
-        [InlineData("tempuserTemp2", "dscbhbaerbyuifb896Q32GQBWHB")]
-        [InlineData("tempuserTemp3", "dscbhbaerbyuifb896Q32GQBWHB")]
-        [InlineData("tempuserTemp4", "dscbhbaerbyuifb896Q32GQBWHB")]
-        [InlineData("tempuserTemp5", "dscbhbaerbyuifb896Q32GQBWHB")]
-        public async Task Login_successful_given_user_is_registered(string username8, string pin8)
+        [InlineData("tempuserTemp1", "dscbhbaerbyuifb896Q32GQBWHB", "$argon2i$v=19$m=524288,t=3,p=4$dGVzdGluZ191c2VyXzFwcm9qZWN0LWZsYXJlLm5ldDB2VGdBOUg0VkF1Z3BoSkNEc3BwR1E$So7RtLAXUnILkxr0rAIUzRCoCYF0QHp5pYoZfzSxaI0")]
+        [InlineData("tempuserTemp2", "dscbhbaerbyuifb896Q32GQBWHB", "$argon2i$v=19$m=524288,t=3,p=4$dGVzdGluZ191c2VyXzBwcm9qZWN0LWZsYXJlLm5ldGVNVEhJaWl0NlNTcWZKdWg2UEovM3c$tHhA3AmlEH8ao3vypVV36eyzbKfuX2b5a+5OCdD0kJI")]
+        [InlineData("tempuserTemp3", "dscbhbaerbyuifb896Q32GQBWHB", "$argon2i$v=19$m=524288,t=3,p=4$dGVzdGluZ191c2VyXzJwcm9qZWN0LWZsYXJlLm5ldGljWnJ2R2VlMzBjYU9UL3dCbmlaOHc$L8v9YhMdDXraDo+PA2rTLlY9wYpVs6wYK13qf+SANjM")]
+        [InlineData("tempuserTemp4", "dscbhbaerbyuifb896Q32GQBWHB", "$argon2i$v=19$m=524288,t=3,p=4$dGVzdGluZ191c2VyXzNwcm9qZWN0LWZsYXJlLm5ldDVBcUt0QWtIRy9MVDczM3FmaENFc3c$2Oc8+v7MK7iXdCEqUpaB4zzq1FGCPC/r4rUC1zVNBb0")]
+        [InlineData("tempuserTemp5", "dscbhbaerbyuifb896Q32GQBWHB", "$argon2i$v=19$m=524288,t=3,p=4$dGVzdGluZ191c2VyXzRwcm9qZWN0LWZsYXJlLm5ldEZhMzFvcy9uWWJhQTVsOEQ1RHpvcmc$I7BB3hDxu0m08EUpAFaGwenwyx+IvnVyuLWfJm0XlSg")]
+        public async Task Login_successful_given_user_is_registered(string username8, string pin8, string hash)
         {
             ClientManager manager = new ClientManager("https://rpc.f2.project-flare.net");
 
             manager.Username = username8;
             manager.Password = pin8;
+            manager.Credentials.Argon2Hash = hash;          
 
             string status = await manager.CheckUsernameStatusAsync();
 
