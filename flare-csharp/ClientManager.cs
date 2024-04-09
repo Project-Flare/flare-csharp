@@ -153,12 +153,13 @@ namespace flare_csharp
         }
 
         /// <summary>
-        /// Correctly specified user credentials will be hashed by secure argon2i, <see cref="Password"/> must be set and will be used as password to generate password hash. 
+        /// Correctly specified user credentials will be hashed by secure argon2i <see cref="Crypto.HashPasswordArgon2i(ref ClientCredentials)"/> method. <see cref="Password"/> must be set and will be used as password to generate password hash. Registration
+        /// and login without hashing password will fail.
         /// </summary>
         /// <exception cref="WrongCredentialsForArgon2Hash">
         /// Thrown when the credential parameters or password do not match the requirements to securely hash password using <see cref="Crypto.HashPasswordArgon2i(ref ClientCredentials)"/>
         /// </exception>
-        private void HashPassword()
+        public void HashPassword()
         {
             try
             {
@@ -183,8 +184,6 @@ namespace flare_csharp
         /// </exception>
         public async Task RegisterToServerAsync()
         {
-            HashPassword();
-
             RegisterResponse resp;
 
             try
