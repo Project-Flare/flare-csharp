@@ -1,13 +1,14 @@
 ﻿using System.Collections.Concurrent;
 using System.Net.Security;
 using System.Net.WebSockets;
+using System.Text;
 using Flare.V1;
 using Google.Protobuf;
 
 namespace flare_csharp
 {
     // Web Socket listener that receives messages from the server
-    public class WSListenerService
+    public class MessageReceivingService
     {
         public enum State
         {
@@ -26,13 +27,13 @@ namespace flare_csharp
 
 
 
-        public WSListenerService(ClientCredentials cc)
+        public MessageReceivingService(ClientCredentials cc)
         {
             Credentials = cc;
             ServiceState = State.Disconnected;
             ws = new ClientWebSocket();
             cts.CancelAfter(TimeSpan.FromSeconds(30));
-            wsListenerThread = new Thread(RunListener);
+            wsListenerThread = new Thread(RunService);
             wsListenerThread.Name = "Web Socket Listener";
             messageQueue = new ConcurrentQueue<InboundUserMessage>();
         }
@@ -52,13 +53,13 @@ namespace flare_csharp
             }
 		}
 
-		private void RunListener()
+		private void RunService()
         {
 			while (true)
             {
                 try
                 {
-                    var receiveMessageTask = ReceiveMessageAsync();
+                    var receiveMessageTask = ReceiveMessageAsync(5);
                 }
                 catch (Exception)
                 { 
@@ -67,24 +68,24 @@ namespace flare_csharp
             }
         }
 
-        private async Task ReceiveMessageAsync()
+        private async Task ReceiveMessageAsync(int timeoutSeconds)
         {
 			const int KILOBYTE = 1024;
 			byte[] buffer = new byte[KILOBYTE];
 			int offset = 0;
 			int free = buffer.Length;
+            var ct = new CancellationTokenSource(TimeSpan.FromSeconds(timeoutSeconds));
 
 			while (true)
 			{
-				WebSocketReceiveResult response = await ws.ReceiveAsync(new ArraySegment<byte>(buffer, offset, free), cts.Token);
+				WebSocketReceiveResult response = await ws.ReceiveAsync(new ArraySegment<byte>(buffer, offset, free), ct.Token);
+                await Ping();
 
 				if (response.EndOfMessage)
 				{
 					offset += response.Count;
 					break;
 				}
-
-				cts.TryReset();
 
 				// Enlarge if the received message is bigger than the buffer
 				if (free.Equals(response.Count))
@@ -124,6 +125,11 @@ namespace flare_csharp
             {
                 // todo
             }
+        }
+
+        public async Task Ping()
+        {
+            await ws.SendAsync(Encoding.ASCII.GetBytes("Ping me bro"), WebSocketMessageType.Binary, true, CancellationToken.None);
         }
 
         public int MessageReceiveCount() => messageQueue.Count;

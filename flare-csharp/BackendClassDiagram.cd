@@ -37,25 +37,29 @@
       </Class>
     </NestedTypes>
     <TypeIdentifier>
-      <HashCode>ACAAAAAAAAEEIAAAAQAAEAAQgACEAAADAgAAEAAAAEA=</HashCode>
+      <HashCode>ASAAAAAAAAEEIAAAAQAAEAAQgACEAAADAggAEAAAAEA=</HashCode>
       <FileName>ClientManager.cs</FileName>
     </TypeIdentifier>
   </Class>
-  <Class Name="flare_csharp.WSListenerService">
-    <Position X="7.75" Y="0.5" Width="2" />
-    <Compartments>
-      <Compartment Name="Nested Types" Collapsed="false" />
-    </Compartments>
+  <Class Name="flare_csharp.MessageReceivingService">
+    <Position X="7.5" Y="0.5" Width="2" />
     <NestedTypes>
-      <Enum Name="flare_csharp.WSListenerService.State">
+      <Enum Name="flare_csharp.MessageReceivingService.State" Collapsed="true">
         <TypeIdentifier>
-          <NewMemberFileName>WSListenerService.cs</NewMemberFileName>
+          <NewMemberFileName>MessageReceivingService.cs</NewMemberFileName>
         </TypeIdentifier>
       </Enum>
     </NestedTypes>
     <TypeIdentifier>
-      <HashCode>AAgAAAAAQAAAEAAAAAAAAAgAAAEEBBUAIQAAAAABAAA=</HashCode>
-      <FileName>WSListenerService.cs</FileName>
+      <HashCode>AAAAAAAAQAAAEAAAAAAAAAAAABEEBBUAIQABAAABAAA=</HashCode>
+      <FileName>MessageReceivingService.cs</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Class Name="flare_csharp.MessageSendingService">
+    <Position X="9.75" Y="0.5" Width="2" />
+    <TypeIdentifier>
+      <HashCode>IAAAAAAAAAAAEAAAACAAAAgAAAAAAAAAAAAAAAAAAAA=</HashCode>
+      <FileName>MessageSendingService.cs</FileName>
     </TypeIdentifier>
   </Class>
   <Font Name="Segoe UI" Size="9" />

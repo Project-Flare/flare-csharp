@@ -81,6 +81,8 @@ namespace flare_csharp
         /// </summary>
         private Auth.AuthClient authClient;
 
+        private Messaging.MessagingClient messagingClient;
+
         /// <summary>
         /// Creates new ClientManager instance with clean new parameters.
         /// </summary>
@@ -96,6 +98,7 @@ namespace flare_csharp
 
             channel = GrpcChannel.ForAddress(ServerUrl);
             authClient = new Auth.AuthClient(channel);
+            messagingClient = new Messaging.MessagingClient(channel);
         }
 
         /// <summary>
@@ -348,6 +351,29 @@ namespace flare_csharp
             var writer = new StreamWriter(".\\Data.txt");
             writer.WriteLine(Credentials.ToString());
             writer.Close();
+        }
+
+        public async Task SendMessageAsync(DiffieHellmanMessage encryptedMessage, string recipientUsername)
+        {
+            try
+            {
+                var metadata = new Metadata
+                {
+                     { "flare-auth", Credentials.AuthToken }
+                };
+
+                var messageRequest = new MessageRequest
+                {
+                    EncryptedMessage = encryptedMessage,
+                    RecipientUsername = recipientUsername
+                };
+
+				MessageResponse response = await messagingClient.MessageAsync(messageRequest, headers: metadata);
+            }
+            catch
+            {
+                // todo
+            }
         }
     }
 }
