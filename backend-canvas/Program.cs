@@ -13,6 +13,12 @@ namespace backend_canvas
             clientManager.Credentials.Password = "190438934";
             clientManager.Credentials.Argon2Hash = "$argon2i$v=19$m=524288,t=3,p=4$dGVzdGluZ191c2VyXzBwcm9qZWN0LWZsYXJlLm5ldGVNVEhJaWl0NlNTcWZKdWg2UEovM3c$tHhA3AmlEH8ao3vypVV36eyzbKfuX2b5a+5OCdD0kJI";
             await clientManager.LoginToServerAsync();
+            WSListenerService wsl = new WSListenerService(clientManager.Credentials);
+            await wsl.StartService();
+            Console.WriteLine("Running main thread");
+            while (true)
+            {
+            }
         }
     }
 }
