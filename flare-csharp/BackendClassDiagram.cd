@@ -51,14 +51,14 @@
       </Enum>
     </NestedTypes>
     <TypeIdentifier>
-      <HashCode>AAAAAAAAQAAAEAAAAAAAAAAAABEEBBUAIQABAAABAAA=</HashCode>
+      <HashCode>AAAAAAAAQAAAEAAAAEAAAAgAABEEBBUAIQAAAAABAAA=</HashCode>
       <FileName>MessageReceivingService.cs</FileName>
     </TypeIdentifier>
   </Class>
   <Class Name="flare_csharp.MessageSendingService">
-    <Position X="9.75" Y="0.5" Width="2" />
+    <Position X="10" Y="0.5" Width="2.25" />
     <TypeIdentifier>
-      <HashCode>IAAAAAAAAAAAEAAAACAAAAgAAAAAAAAAAAAAAAAAAAA=</HashCode>
+      <HashCode>IABAAAAgAABAMAAAAAgAAAgAAAAEABAAAAAAAAAAAAA=</HashCode>
       <FileName>MessageSendingService.cs</FileName>
     </TypeIdentifier>
   </Class>

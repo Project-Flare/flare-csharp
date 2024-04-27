@@ -14,16 +14,14 @@ namespace flare_csharp
 	public class MessageSendingService
 	{
 		public GrpcChannel Channel { get; set; }
-		public CancellationTokenSource CTS { get; set; }
-		public Messaging.MessagingClient MessagingClient { get; set; }
 		public ClientCredentials Credentials { get; set; }
+		public Messaging.MessagingClient MessagingClient { get; set; }
 		private ConcurrentQueue<MessageRequest> messageQueue;
 		private Thread messageSendingThread;
 
-		public MessageSendingService(GrpcChannel channel, CancellationTokenSource cts, ClientCredentials credentials)
+		public MessageSendingService(GrpcChannel channel, ClientCredentials credentials)
 		{
 			Channel = channel;
-			CTS = cts;
 			Credentials = credentials;
 			MessagingClient = new Messaging.MessagingClient(channel);
 			messageQueue = new ConcurrentQueue<MessageRequest>();
@@ -58,12 +56,16 @@ namespace flare_csharp
 		private async Task SendEnqueuedMessageAsync(int timeoutSeconds)
 		{
 			MessageRequest? messageRequest;
-			messageQueue.TryDequeue(out messageRequest);
+			messageQueue.TryPeek(out messageRequest);
 			if (messageRequest is not null)
 			{
 				var ct = new CancellationTokenSource(TimeSpan.FromSeconds(timeoutSeconds));
-				var metadata = new Metadata { { "flare-auth", Credentials.AuthToken } };
-				await MessagingClient.MessageAsync(messageRequest, headers: metadata, deadline: DateTime.UtcNow.AddSeconds(timeoutSeconds));
+				var metadata = new Metadata { { "flare-auth", ClientCredentials.AuthToken } };
+				MessageResponse response = await MessagingClient.MessageAsync(messageRequest, headers: metadata, deadline: DateTime.UtcNow.AddSeconds(timeoutSeconds));
+				if (response.HasSuccess)
+				{
+					messageQueue.TryDequeue(out _);
+				}
 			}
 		}
 	}

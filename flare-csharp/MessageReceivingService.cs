@@ -27,9 +27,9 @@ namespace flare_csharp
 
 
 
-        public MessageReceivingService(ClientCredentials cc)
+        public MessageReceivingService(ClientCredentials credentials)
         {
-            Credentials = cc;
+            Credentials = credentials;
             ServiceState = State.Disconnected;
             ws = new ClientWebSocket();
             cts.CancelAfter(TimeSpan.FromSeconds(30));
@@ -114,7 +114,7 @@ namespace flare_csharp
             {
                 var request = new SubscribeRequest
                 {
-                    Token = Credentials.AuthToken
+                    Token = ClientCredentials.AuthToken
                 };
 
                 await ws.SendAsync(request.ToByteArray(), WebSocketMessageType.Binary, true, cts.Token);

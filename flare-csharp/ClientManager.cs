@@ -83,6 +83,10 @@ namespace flare_csharp
 
         private Messaging.MessagingClient messagingClient;
 
+        private MessageSendingService messageSender;
+        private MessageReceivingService messageReceiver;
+
+
         /// <summary>
         /// Creates new ClientManager instance with clean new parameters.
         /// </summary>
@@ -99,6 +103,9 @@ namespace flare_csharp
             channel = GrpcChannel.ForAddress(ServerUrl);
             authClient = new Auth.AuthClient(channel);
             messagingClient = new Messaging.MessagingClient(channel);
+
+            messageSender = new MessageSendingService(channel, Credentials);
+            messageReceiver = new MessageReceivingService(Credentials);
         }
 
         /// <summary>
@@ -217,7 +224,7 @@ namespace flare_csharp
             if (resp.HasFailure)
                 throw new RegistrationFailedException(resp.Failure.ToString());
 
-            Credentials.AuthToken = resp.Token;
+            ClientCredentials.AuthToken = resp.Token;
             SaveData();
         }
 
@@ -258,7 +265,7 @@ namespace flare_csharp
 
             if (resp.HasToken)
             {
-                Credentials.AuthToken = resp.Token;
+                ClientCredentials.AuthToken = resp.Token;
             }
 
             SaveData();
@@ -281,7 +288,7 @@ namespace flare_csharp
             {
                 var metadata = new Metadata
                 {
-                    { "flare-auth", Credentials.AuthToken }
+                    { "flare-auth", ClientCredentials.AuthToken }
                 };
                 resp = await ServerCall<TokenHealthResponse>.FulfilUnaryCallAsync(
                     authClient.GetTokenHealthAsync(
@@ -311,7 +318,7 @@ namespace flare_csharp
                         new RenewTokenRequest { },
                         headers: new Metadata
                         {
-                            { "flare-auth", Credentials.AuthToken }
+                            { "flare-auth", ClientCredentials.AuthToken }
                         }));
             }
             catch (Exception ex)
@@ -319,7 +326,7 @@ namespace flare_csharp
                 throw new GrpcCallFailureException(ex.Message, ex);
             }
 
-            Credentials.AuthToken = resp.Token;
+            ClientCredentials.AuthToken = resp.Token;
         }
 
         /// <summary>
@@ -338,7 +345,7 @@ namespace flare_csharp
             var resp = await ServerCall<ObliviateResponse>.FulfilUnaryCallAsync(
                 authClient.ObliviateAsync(
                     new ObliviateRequest { Lockdown = lockUsername },
-                    headers: new Metadata { { "flare-auth", Credentials.AuthToken } }
+                    headers: new Metadata { { "flare-auth", ClientCredentials.AuthToken } }
                 ));
 
             if (resp.Result != ObliviateResponse.Types.ObliviateResult.OkUnlocked)
@@ -359,7 +366,7 @@ namespace flare_csharp
             {
                 var metadata = new Metadata
                 {
-                     { "flare-auth", Credentials.AuthToken }
+                     { "flare-auth", ClientCredentials.AuthToken }
                 };
 
                 var messageRequest = new MessageRequest

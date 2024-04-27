@@ -46,9 +46,30 @@
         }
 
         /// <summary>
-        /// Received authentication token from the server when loggin in or registering.
+        /// Received authentication token from the server when logging in or registering. Thread safe (source - kinda trust me bro)
         /// </summary>
-        public string AuthToken { get; set; } = string.Empty;
+        public static string AuthToken 
+        {
+            get
+            {
+                lock (authTokenLock)
+                {
+                    return authTokenValue;
+                }
+            }
+            set
+            {
+                lock (authTokenLock)
+                {
+                    authTokenValue = value;
+                }
+            }
+        }
+
+        // Single instance for the authorization token that ensures that authTokenValue is used on one thread (make thread-safe)
+        private static readonly object authTokenLock = new object();
+        private static string authTokenValue = string.Empty;
+
 
         public ClientCredentials(int memoryCostBytes, int timeCost) 
         {
