@@ -29,58 +29,81 @@ namespace backend_canvas
 			Console.WriteLine("Receiving message...");
 			Console.WriteLine("Received message: " + receiveMessageTask.Result.ToString());
 			Thread.Sleep(500000);*/
-			var webSocket = new ClientWebSocket();
-
-			// Connecting to server
-			await webSocket.ConnectAsync(new Uri("wss://ws.f2.project-flare.net/"), CancellationToken.None);
-
-			// Subscribing to server
-			var request = new SubscribeRequest
-			{
-				Token = clientManager.Credentials.AuthToken
-			};
-
-			await webSocket.SendAsync(request.ToByteArray(), WebSocketMessageType.Binary, true, CancellationToken.None);
-
-			/*// Running constant ping thread
-			var pingThread = new Thread(() =>
-			{
-				Console.WriteLine($"[WS_STATE]: {webSocket.State}");
-				Thread.CurrentThread.IsBackground = true;
-                var pingTask = webSocket.SendAsync(
-				Encoding.ASCII.GetBytes("PING ME"), WebSocketMessageType.Binary, endOfMessage: true, CancellationToken.None);
-				pingTask.Wait();
-                Console.WriteLine("[PING]: sent");
-				Thread.Sleep(1000);
-			});
-			pingThread.Name = "PING_THREAD";
-			pingThread.Start();*/
-
-			string tokenHealth = await clientManager.GetTokenHealthAsync();
-			Console.WriteLine("[TOKEN_HEALTH]: " + tokenHealth);
-
-			Console.WriteLine($"[WS_STATE]: {webSocket.State}");
-			// Receiving my sent message to myself from the server
-			var buf = new byte[1024];
-			Console.WriteLine($"[WS_STATE]: {webSocket.State}");
-			var buffer = new ArraySegment<byte>(buf);
-			Console.WriteLine($"[WS_STATE]: {webSocket.State}");
-
-			try
+			using (var webSocket = new ClientWebSocket())
 			{
 
-				var result = await webSocket.ReceiveAsync(buffer, CancellationToken.None);
-			}
-			catch
-			{
-				webSocket.Abort();
-				webSocket = new ClientWebSocket();
+				// Connecting to server
 				await webSocket.ConnectAsync(new Uri("wss://ws.f2.project-flare.net/"), CancellationToken.None);
+
+				while (webSocket.State == WebSocketState.Open)
+				{
+					Console.WriteLine($"[WS_STATE]: {webSocket.State}");
+					// Subscribing to server
+					var request = new SubscribeRequest
+					{
+						Token = clientManager.Credentials.AuthToken
+					};
+					await webSocket.SendAsync(request.ToByteArray(), WebSocketMessageType.Binary, true, CancellationToken.None);
+					// Checking token health
+					string tokenHealth = await clientManager.GetTokenHealthAsync();
+					Console.WriteLine("[TOKEN_HEALTH]: " + tokenHealth);
+					Console.WriteLine($"[WS_STATE]: {webSocket.State}");
+					// Receiving my sent message to myself from the server
+					var buffer = new byte[1024];
+					Console.WriteLine($"[WS_STATE]: {webSocket.State}");
+					var cts = new CancellationTokenSource(TimeSpan.FromSeconds(60));
+					try
+					{
+						//var result = await webSocket.ReceiveAsync(new ArraySegment<byte>(buffer), cts.Token);
+						var message = await ReceiveMessageAsync(webSocket, cts);
+						Console.WriteLine($"[MESSAGE]: {message.ToString()}");
+						cts.TryReset();
+					}
+					catch (Exception ex)
+					{
+						Console.WriteLine($"[WS_STATE]: {webSocket.State}");
+						Console.WriteLine("[ERROR]: failed to receive message from the server:\n\t" + ex.Message);
+					}
+				}	
+			}
+		}
+
+		public static async Task<InboundUserMessage> ReceiveMessageAsync(ClientWebSocket webSocket, CancellationTokenSource cts)
+		{
+			const int KILOBYTE = 1024;
+			byte[] buffer = new byte[KILOBYTE];
+			int offset = 0;
+			int free = buffer.Length;
+
+			while (true)
+			{
+				WebSocketReceiveResult response = await webSocket.ReceiveAsync(new ArraySegment<byte>(buffer, offset, free), cts.Token);
+
+				if (response.EndOfMessage)
+				{
+					offset += response.Count;
+					break;
+				}
+
+				// Enlarge if the received message is bigger than the buffer
+				if (free.Equals(response.Count))
+				{
+					int newSize = buffer.Length * 2;
+
+					if (newSize > 2_000_000)
+						break;
+
+					byte[] newBuffer = new byte[newSize];
+					Array.Copy(buffer, 0, newBuffer, 0, buffer.Length);
+
+					free = newBuffer.Length - buffer.Length;
+					offset = buffer.Length;
+					buffer = newBuffer;
+				}
+
 			}
 
-			Console.WriteLine($"[WS_STATE]: {webSocket.State}");
-
-			Thread.Sleep(500000);
+			return InboundUserMessage.Parser.ParseFrom(buffer, 0, offset);
 		}
 	}
 }
