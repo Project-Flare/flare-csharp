@@ -3,12 +3,15 @@
   <Class Name="flare_csharp.ClientCredentials">
     <Position X="2.5" Y="0.5" Width="2" />
     <TypeIdentifier>
-      <HashCode>AACAIAAQAAAAAAAEAQAAAMIAAAAAQAACAAAAAAAAAAA=</HashCode>
+      <HashCode>AACAIAgQAAAAAAAEAQAAAMIAAAAAQAACAAAAAAAAAAQ=</HashCode>
       <FileName>ClientCredentials.cs</FileName>
     </TypeIdentifier>
   </Class>
   <Class Name="flare_csharp.ClientManager">
-    <Position X="4.75" Y="0.5" Width="2.5" />
+    <Position X="4.75" Y="0.5" Width="3.5" />
+    <Compartments>
+      <Compartment Name="Nested Types" Collapsed="false" />
+    </Compartments>
     <NestedTypes>
       <Class Name="flare_csharp.ClientManager.GrpcCallFailureException" Collapsed="true">
         <TypeIdentifier>
@@ -37,14 +40,17 @@
       </Class>
     </NestedTypes>
     <TypeIdentifier>
-      <HashCode>ASAAAAAAAAEEIAAAAQAAEAAQgACEAAADAggAEAAAAEA=</HashCode>
+      <HashCode>ACAAAAEAAAEEIEAAAQAAEAAQgACEAAADAgAQEAAAAUA=</HashCode>
       <FileName>ClientManager.cs</FileName>
     </TypeIdentifier>
   </Class>
   <Class Name="flare_csharp.MessageReceivingService">
-    <Position X="7.5" Y="0.5" Width="2" />
+    <Position X="8.75" Y="0.5" Width="2" />
+    <Compartments>
+      <Compartment Name="Nested Types" Collapsed="false" />
+    </Compartments>
     <NestedTypes>
-      <Enum Name="flare_csharp.MessageReceivingService.State" Collapsed="true">
+      <Enum Name="flare_csharp.MessageReceivingService.State">
         <TypeIdentifier>
           <NewMemberFileName>MessageReceivingService.cs</NewMemberFileName>
         </TypeIdentifier>
@@ -56,9 +62,9 @@
     </TypeIdentifier>
   </Class>
   <Class Name="flare_csharp.MessageSendingService">
-    <Position X="10" Y="0.5" Width="2.25" />
+    <Position X="11.25" Y="0.5" Width="2.25" />
     <TypeIdentifier>
-      <HashCode>IABAAAAgAABAMAAAAAgAAAgAAAAEABAAAAAAAAAAAAA=</HashCode>
+      <HashCode>AABAAAAgAABAMAAAAAgAAAgAAAAEABAAAAAAAAAAAAA=</HashCode>
       <FileName>MessageSendingService.cs</FileName>
     </TypeIdentifier>
   </Class>

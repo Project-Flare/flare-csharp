@@ -3,6 +3,10 @@ using Flare.V1;
 using Grpc.Core;
 using Org.BouncyCastle.Math.EC.Rfc8032;
 using System.Runtime.CompilerServices;
+using System.Net.WebSockets;
+using System.Text;
+using static Flare.V1.Messaging;
+using Google.Protobuf;
 
 namespace flare_csharp
 {
@@ -81,11 +85,6 @@ namespace flare_csharp
         /// </summary>
         private Auth.AuthClient authClient;
 
-        private Messaging.MessagingClient messagingClient;
-
-        private MessageSendingService messageSender;
-        private MessageReceivingService messageReceiver;
-
 
         /// <summary>
         /// Creates new ClientManager instance with clean new parameters.
@@ -102,10 +101,7 @@ namespace flare_csharp
 
             channel = GrpcChannel.ForAddress(ServerUrl);
             authClient = new Auth.AuthClient(channel);
-            messagingClient = new Messaging.MessagingClient(channel);
 
-            messageSender = new MessageSendingService(channel, Credentials);
-            messageReceiver = new MessageReceivingService(Credentials);
         }
 
         /// <summary>
@@ -225,7 +221,15 @@ namespace flare_csharp
                 throw new RegistrationFailedException(resp.Failure.ToString());
 
             ClientCredentials.AuthToken = resp.Token;
-            SaveData();
+            try
+            {
+				SaveData();
+			}
+            catch
+            {
+                // todo
+            }
+           
         }
 
         /// <summary>
@@ -360,27 +364,103 @@ namespace flare_csharp
             writer.Close();
         }
 
-        public async Task SendMessageAsync(DiffieHellmanMessage encryptedMessage, string recipientUsername)
+		public async Task SendMessageAsync(string message, string recipientUsername)
+		{
+            MessagingClient messagingService = new MessagingClient(channel);
+			
+            var metadata = new Metadata { { "flare-auth", ClientCredentials.AuthToken } };
+            var messageRequest = new MessageRequest
+            {
+                EncryptedMessage = new DiffieHellmanMessage(),
+                RecipientUsername = recipientUsername
+            };
+
+			MessageResponse response = await messagingService.MessageAsync(request: messageRequest, headers: metadata, deadline: DateTime.UtcNow.AddSeconds(3), cancellationToken: CancellationToken.None);
+		}
+
+		private ClientWebSocket webSocket = new ClientWebSocket();
+
+        public async Task ConnectWebSocket()
         {
-            try
-            {
-                var metadata = new Metadata
-                {
-                     { "flare-auth", ClientCredentials.AuthToken }
-                };
+            Console.WriteLine("Connecting websocket...");
+			await ConnectAsync(webSocket);
+			await AuthenticateConnection(webSocket);
+            Console.WriteLine("Connection established!");
+		}
 
-                var messageRequest = new MessageRequest
-                {
-                    EncryptedMessage = encryptedMessage,
-                    RecipientUsername = recipientUsername
-                };
+		public async Task<InboundUserMessage> ReceiveMessagesTask()
+        {
+			var receiveMessageTask = ReceiveMessageAsync(webSocket);
+            var proxy = await Task.Run(() => receiveMessageTask);
+            return proxy;
+		}
 
-				MessageResponse response = await messagingClient.MessageAsync(messageRequest, headers: metadata);
-            }
-            catch
-            {
-                // todo
-            }
+        public async void Ping()
+        {
+            await PingAsync(webSocket);
         }
-    }
+
+        private async Task AuthenticateConnection(ClientWebSocket webSocket)
+        {
+			var request = new SubscribeRequest
+			{
+				Token = ClientCredentials.AuthToken
+			};
+
+			await webSocket.SendAsync(request.ToByteArray(), WebSocketMessageType.Binary, true, CancellationToken.None);
+		}
+
+        private async Task ConnectAsync(ClientWebSocket webSocket)
+        {
+			await webSocket.ConnectAsync(new Uri("wss://ws.f2.project-flare.net/"), CancellationToken.None);
+		}
+
+		private async Task<InboundUserMessage> ReceiveMessageAsync(ClientWebSocket webSocket)
+		{
+			const int KILOBYTE = 1024;
+			byte[] buffer = new byte[KILOBYTE];
+			int offset = 0;
+			int free = buffer.Length;
+
+			while (true)
+			{
+				WebSocketReceiveResult response = await webSocket.ReceiveAsync(new ArraySegment<byte>(buffer, offset, free), CancellationToken.None);
+
+				if (response.EndOfMessage)
+				{
+					offset += response.Count;
+					break;
+				}
+
+				// Enlarge if the received message is bigger than the buffer
+				if (free.Equals(response.Count))
+				{
+					int newSize = buffer.Length * 2;
+
+					if (newSize > 2_000_000)
+						break;
+
+					byte[] newBuffer = new byte[newSize];
+					Array.Copy(buffer, 0, newBuffer, 0, buffer.Length);
+
+					free = newBuffer.Length - buffer.Length;
+					offset = buffer.Length;
+					buffer = newBuffer;
+				}
+
+			}
+
+			return InboundUserMessage.Parser.ParseFrom(buffer, 0, offset);
+		}
+
+        private async Task PingAsync(ClientWebSocket webSocket)
+        {
+            Console.WriteLine("Ping start!");
+			await webSocket.SendAsync(Encoding.ASCII.GetBytes("Ping me bro"), WebSocketMessageType.Binary, true, CancellationToken.None);
+            Console.WriteLine("Ping over!");
+		}
+
+
+
+	}
 }

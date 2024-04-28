@@ -24,7 +24,7 @@ namespace flare_csharp
         private CancellationTokenSource cts = new CancellationTokenSource();        // default is 30s, after that, web socket's asynchronous operations will be cancelled
 		private Thread wsListenerThread;                                            // handles the connection, manages receiving messages from the server
         private ConcurrentQueue<InboundUserMessage> messageQueue;                   // thread-safe message queue, enqueues and dequeues messages that are received from the server
-
+        private Thread wsPingThread;
 
 
         public MessageReceivingService(ClientCredentials credentials)
@@ -33,9 +33,10 @@ namespace flare_csharp
             ServiceState = State.Disconnected;
             ws = new ClientWebSocket();
             cts.CancelAfter(TimeSpan.FromSeconds(30));
-            wsListenerThread = new Thread(RunService);
-            wsListenerThread.Name = "Web Socket Listener";
+            //wsListenerThread = new Thread(RunListener);
+            //wsListenerThread.Name = "Web Socket Listener";
             messageQueue = new ConcurrentQueue<InboundUserMessage>();
+            //wsPingThread = new Thread(PingWS);
         }
 
 		public async Task StartService()
@@ -44,7 +45,7 @@ namespace flare_csharp
             {
 			    await ws.ConnectAsync(new Uri(serverUrl), cts.Token);
                 await MakeSubscribeRequest();
-                wsListenerThread.Start();
+                //wsListenerThread.Start();
                 ServiceState = State.Running;
             }
             catch (Exception)
@@ -53,13 +54,14 @@ namespace flare_csharp
             }
 		}
 
-		private void RunService()
+		private async void RunListener()
         {
 			while (true)
             {
                 try
                 {
                     var receiveMessageTask = ReceiveMessageAsync(5);
+                    await receiveMessageTask;
                 }
                 catch (Exception)
                 { 
@@ -68,7 +70,17 @@ namespace flare_csharp
             }
         }
 
-        private async Task ReceiveMessageAsync(int timeoutSeconds)
+        public async void PingWS(int pingIntervalSeconds)
+        {
+            while (true)
+            {
+                Task pingTask = Ping();
+                await pingTask;
+                Thread.Sleep(TimeSpan.FromSeconds(pingIntervalSeconds));
+            }
+        }
+
+        public async Task ReceiveMessageAsync(int timeoutSeconds)
         {
 			const int KILOBYTE = 1024;
 			byte[] buffer = new byte[KILOBYTE];
@@ -79,7 +91,6 @@ namespace flare_csharp
 			while (true)
 			{
 				WebSocketReceiveResult response = await ws.ReceiveAsync(new ArraySegment<byte>(buffer, offset, free), ct.Token);
-                await Ping();
 
 				if (response.EndOfMessage)
 				{

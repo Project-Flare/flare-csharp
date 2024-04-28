@@ -6,15 +6,14 @@ using System.Linq;
 using System.Net.WebSockets;
 using System.Text;
 using System.Threading.Tasks;
-using flare_csharp;
 
-namespace backend_canvas
+namespace flare_csharp
 {
 	internal class Program
 	{
 		static async Task Main(string[] args)
 		{
-			System.Environment.SetEnvironmentVariable("DOTNET_SYSTEM_NET_HTTP_SOCKETSHTTPHANDLER_HTTP2SUPPORT", "1");
+			//System.Environment.SetEnvironmentVariable("DOTNET_SYSTEM_NET_HTTP_SOCKETSHTTPHANDLER_HTTP2SUPPORT", "1");
 
 			var clientManager = new ClientManager("https://rpc.f2.project-flare.net");
 			clientManager.Credentials.Username = "testing_user_0";
@@ -45,41 +44,23 @@ namespace backend_canvas
 			// Running constant ping thread
 			var pingThread = new Thread(() =>
 			{
-				Console.WriteLine($"[WS_STATE]: {webSocket.State}");
 				Thread.CurrentThread.IsBackground = true;
-                var pingTask = webSocket.SendAsync(
+                Console.WriteLine("[PING]: sending");
+                webSocket.SendAsync(
 				Encoding.ASCII.GetBytes("PING ME"), WebSocketMessageType.Binary, endOfMessage: true, CancellationToken.None);
-				pingTask.Wait();
                 Console.WriteLine("[PING]: sent");
-				Thread.Sleep(1000);
 			});
-			pingThread.Name = "PING_THREAD";
 			pingThread.Start();
 
-			Thread.Sleep(10000);
-
-			Console.WriteLine($"[WS_STATE]: {webSocket.State}");
 			// Receiving my sent message to myself from the server
-			var buf = new byte[1024];
-			Console.WriteLine($"[WS_STATE]: {webSocket.State}");
-			var buffer = new ArraySegment<byte>(buf);
-			Console.WriteLine($"[WS_STATE]: {webSocket.State}");
+			var buffer = new byte[1024];
 
-			try
-			{
+			await webSocket.ReceiveAsync(buffer, CancellationToken.None);
 
-				var result = await webSocket.ReceiveAsync(buffer, CancellationToken.None);
-			}
-			catch
-			{
-				await webSocket.CloseAsync(
-					WebSocketCloseStatus.NormalClosure, 
-					statusDescription: null, 
-					CancellationToken.None);
-
-			}
-
-			Console.WriteLine($"[WS_STATE]: {webSocket.State}");
+			await webSocket.CloseAsync(
+				WebSocketCloseStatus.NormalClosure, 
+				statusDescription: null, 
+				CancellationToken.None);
 
 			Thread.Sleep(500000);
 		}
