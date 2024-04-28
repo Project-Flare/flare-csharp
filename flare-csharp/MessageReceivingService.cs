@@ -22,9 +22,7 @@ namespace flare_csharp
         private ClientWebSocket ws;                                                 // listening web socket
         private const string serverUrl = "wss://ws.f2.project-flare.net/";          // just the url of the web socket server
         private CancellationTokenSource cts = new CancellationTokenSource();        // default is 30s, after that, web socket's asynchronous operations will be cancelled
-		private Thread wsListenerThread;                                            // handles the connection, manages receiving messages from the server
         private ConcurrentQueue<InboundUserMessage> messageQueue;                   // thread-safe message queue, enqueues and dequeues messages that are received from the server
-        private Thread wsPingThread;
 
 
         public MessageReceivingService(ClientCredentials credentials)
@@ -125,7 +123,7 @@ namespace flare_csharp
             {
                 var request = new SubscribeRequest
                 {
-                    Token = ClientCredentials.AuthToken
+                    Token = Credentials.AuthToken
                 };
 
                 await ws.SendAsync(request.ToByteArray(), WebSocketMessageType.Binary, true, cts.Token);

@@ -37,12 +37,12 @@ namespace backend_canvas
 			// Subscribing to server
 			var request = new SubscribeRequest
 			{
-				Token = ClientCredentials.AuthToken
+				Token = clientManager.Credentials.AuthToken
 			};
 
 			await webSocket.SendAsync(request.ToByteArray(), WebSocketMessageType.Binary, true, CancellationToken.None);
 
-			// Running constant ping thread
+			/*// Running constant ping thread
 			var pingThread = new Thread(() =>
 			{
 				Console.WriteLine($"[WS_STATE]: {webSocket.State}");
@@ -54,9 +54,10 @@ namespace backend_canvas
 				Thread.Sleep(1000);
 			});
 			pingThread.Name = "PING_THREAD";
-			pingThread.Start();
+			pingThread.Start();*/
 
-			Thread.Sleep(10000);
+			string tokenHealth = await clientManager.GetTokenHealthAsync();
+			Console.WriteLine("[TOKEN_HEALTH]: " + tokenHealth);
 
 			Console.WriteLine($"[WS_STATE]: {webSocket.State}");
 			// Receiving my sent message to myself from the server
@@ -72,11 +73,9 @@ namespace backend_canvas
 			}
 			catch
 			{
-				await webSocket.CloseAsync(
-					WebSocketCloseStatus.NormalClosure, 
-					statusDescription: null, 
-					CancellationToken.None);
-
+				webSocket.Abort();
+				webSocket = new ClientWebSocket();
+				await webSocket.ConnectAsync(new Uri("wss://ws.f2.project-flare.net/"), CancellationToken.None);
 			}
 
 			Console.WriteLine($"[WS_STATE]: {webSocket.State}");

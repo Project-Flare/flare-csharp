@@ -60,7 +60,7 @@ namespace flare_csharp
 			if (messageRequest is not null)
 			{
 				var ct = new CancellationTokenSource(TimeSpan.FromSeconds(timeoutSeconds));
-				var metadata = new Metadata { { "flare-auth", ClientCredentials.AuthToken } };
+				var metadata = new Metadata { { "flare-auth", Credentials.AuthToken } };
 				MessageResponse response = await MessagingClient.MessageAsync(messageRequest, headers: metadata, deadline: DateTime.UtcNow.AddSeconds(timeoutSeconds));
 				if (response.HasSuccess)
 				{

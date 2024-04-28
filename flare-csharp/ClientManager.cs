@@ -220,7 +220,7 @@ namespace flare_csharp
             if (resp.HasFailure)
                 throw new RegistrationFailedException(resp.Failure.ToString());
 
-            ClientCredentials.AuthToken = resp.Token;
+            Credentials.AuthToken = resp.Token;
             try
             {
 				SaveData();
@@ -269,7 +269,7 @@ namespace flare_csharp
 
             if (resp.HasToken)
             {
-                ClientCredentials.AuthToken = resp.Token;
+				Credentials.AuthToken = resp.Token;
             }
 
             SaveData();
@@ -292,7 +292,7 @@ namespace flare_csharp
             {
                 var metadata = new Metadata
                 {
-                    { "flare-auth", ClientCredentials.AuthToken }
+                    { "flare-auth", Credentials.AuthToken }
                 };
                 resp = await ServerCall<TokenHealthResponse>.FulfilUnaryCallAsync(
                     authClient.GetTokenHealthAsync(
@@ -322,7 +322,7 @@ namespace flare_csharp
                         new RenewTokenRequest { },
                         headers: new Metadata
                         {
-                            { "flare-auth", ClientCredentials.AuthToken }
+                            { "flare-auth", Credentials.AuthToken }
                         }));
             }
             catch (Exception ex)
@@ -330,7 +330,7 @@ namespace flare_csharp
                 throw new GrpcCallFailureException(ex.Message, ex);
             }
 
-            ClientCredentials.AuthToken = resp.Token;
+			Credentials.AuthToken = resp.Token;
         }
 
         /// <summary>
@@ -349,7 +349,7 @@ namespace flare_csharp
             var resp = await ServerCall<ObliviateResponse>.FulfilUnaryCallAsync(
                 authClient.ObliviateAsync(
                     new ObliviateRequest { Lockdown = lockUsername },
-                    headers: new Metadata { { "flare-auth", ClientCredentials.AuthToken } }
+                    headers: new Metadata { { "flare-auth", Credentials.AuthToken } }
                 ));
 
             if (resp.Result != ObliviateResponse.Types.ObliviateResult.OkUnlocked)
@@ -368,7 +368,7 @@ namespace flare_csharp
 		{
             MessagingClient messagingService = new MessagingClient(channel);
 			
-            var metadata = new Metadata { { "flare-auth", ClientCredentials.AuthToken } };
+            var metadata = new Metadata { { "flare-auth", Credentials.AuthToken } };
             var messageRequest = new MessageRequest
             {
                 EncryptedMessage = new DiffieHellmanMessage(),
@@ -404,7 +404,7 @@ namespace flare_csharp
         {
 			var request = new SubscribeRequest
 			{
-				Token = ClientCredentials.AuthToken
+				Token = Credentials.AuthToken
 			};
 
 			await webSocket.SendAsync(request.ToByteArray(), WebSocketMessageType.Binary, true, CancellationToken.None);
