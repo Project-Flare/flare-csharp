@@ -10,9 +10,9 @@ namespace flare_csharp
 	public class Process<T>
 	{
 		public T CurrentState { get; set; }
-		public enum Command { Begin, End, Pause, Resume, Abort, Exit }
+		public enum Command { Start, Success, Failure, Abort }
 		public Dictionary<StateTransition, T> StateTransitions { get; set; }
-		public Thread ProcessThread { get; set; }
+		public Thread? ProcessThread { get; set; }
 		public class StateTransition
 		{
 			public readonly T CurrentState;
@@ -36,11 +36,11 @@ namespace flare_csharp
 				return $"{Command}|{CurrentState}|{this.GetHashCode()}";
 			}
 		}
-		public Process(T initialState, Thread processThread)
+		public Process(T initialState)
 		{
 			CurrentState = initialState;
 			StateTransitions = new Dictionary<StateTransition, T>();
-			ProcessThread = processThread;
+			ProcessThread = null;
 		}
 		public void AddStateTransition(StateTransition transition, T processState)
 		{
@@ -58,6 +58,10 @@ namespace flare_csharp
 			}
 			CurrentState = nextProcessState!;
 			return nextProcessState!;
+		}
+		public void GoTo(T gotoState)
+		{
+			CurrentState = gotoState;
 		}
 	}
 }
