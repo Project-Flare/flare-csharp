@@ -1,6 +1,7 @@
 ﻿using Flare.V1;
 using Grpc.Net.Client;
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
@@ -14,8 +15,8 @@ namespace flare_csharp
 	{
 		public abstract class Service<TState, TChannel> where TState : Enum
 		{
-			public virtual TState State { get; private set; }
-			public virtual Process<TState> Process { get; private set; }
+			public virtual TState State { get; protected set; }
+			public virtual Process<TState> Process { get; protected set; }
 			protected Service(TState initialState, Process<TState> process)
 			{
 				State = initialState;
@@ -24,6 +25,49 @@ namespace flare_csharp
 			public abstract Task RunServiceAsync(TChannel channel, Process<TState> process);
 			protected abstract void DefineWorkflow();
 			protected abstract bool ServiceEnded(TChannel channel);
+		}
+
+		public enum MSSState { Connected, Disconnected, SendingMessage };
+		public sealed class MessagingSendingService : Service<MSSState, GrpcChannel>
+		{
+			private ConcurrentQueue<Message> messageQueue;
+			public MessagingSendingService(MSSState initialState, Process<MSSState> process) : base(initialState, process)
+			{
+				messageQueue = new ConcurrentQueue<InboundUserMessage>();
+			}
+			public override async Task RunServiceAsync(GrpcChannel channel, Process<MSSState> process)
+			{
+				Messaging.MessagingClient messagingClient = new Messaging.MessagingClient(channel);
+				while (!ServiceEnded(channel))
+				{
+
+				}
+			}
+			public void SendMessage(Message message) 
+			{
+				messageQueue.Enqueue(message);
+			}
+			protected override void DefineWorkflow()
+			{
+				throw new NotImplementedException();
+			}
+
+			protected override bool ServiceEnded(GrpcChannel channel)
+			{
+				return channel.State == Grpc.Core.ConnectivityState.TransientFailure
+					|| channel.State == Grpc.Core.ConnectivityState.Shutdown
+					|| channel.State == Grpc.Core.ConnectivityState.Shutdown;
+			}
+			public sealed class Message			// this may change later, now I just need a simple wrapper class for sending messages
+			{
+				public string RecipientUsername { get; set; }
+				public string MessageText { get; set; }
+				public Message(string recipientUsername, string messageText)
+				{
+					RecipientUsername = recipientUsername;
+					MessageText = messageText;
+				}
+			}
 		}
 
 		public enum SetLoginCredsServiceState { FetchRequirements, SetUsername, SetPassword, FetchOpinion, EndSuccess, TryRecconect, EndFailure }
@@ -139,7 +183,7 @@ namespace flare_csharp
 										request: new RequirementsRequest { });
 							if (serverRequirements is not null)
 							{
-								process.MoveToNextState(Process<ProcessState>.Command.End);
+								process.MoveToNextState(Process<ProcessState>.Command.Success);
 							}
 							break;
 						case ProcessState.SetUsername:
