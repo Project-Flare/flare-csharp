@@ -33,7 +33,7 @@ namespace flare_csharp
 			private ConcurrentQueue<Message> messageQueue;
 			public MessagingSendingService(MSSState initialState, Process<MSSState> process) : base(initialState, process)
 			{
-				messageQueue = new ConcurrentQueue<InboundUserMessage>();
+				messageQueue = new ConcurrentQueue<Message>();
 			}
 			public override async Task RunServiceAsync(GrpcChannel channel, Process<MSSState> process)
 			{
