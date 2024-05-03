@@ -1,102 +1,174 @@
-﻿using System.Collections.Concurrent;
-using System.Net.Security;
+﻿using Flare.V1;
+using flare_csharp.Services;
+using Google.Protobuf;
+using System.Collections.Concurrent;
+using System.Diagnostics;
 using System.Net.WebSockets;
 using System.Text;
-using Flare.V1;
-using Google.Protobuf;
 
 namespace flare_csharp
 {
-    // Web Socket listener that receives messages from the server
-    public class MessageReceivingService
-    {
-        public enum State
-        {
-            Connected, Disconnected, Running
-        }
-
-        public int ReceivedMessageCount { get => messageQueue.Count; }
-        public ClientCredentials Credentials { get; set; }                          // some user credentials are needed, TODO - maybe you should add this class instance to the client manager class
-        
-        public State ServiceState { get; private set; }                             // Running - the thread runs 
-        private ClientWebSocket ws;                                                 // listening web socket
-        private const string serverUrl = "wss://ws.f2.project-flare.net/";          // just the url of the web socket server
-        private CancellationTokenSource cts = new CancellationTokenSource();        // default is 30s, after that, web socket's asynchronous operations will be cancelled
-        private ConcurrentQueue<InboundUserMessage> messageQueue;                   // thread-safe message queue, enqueues and dequeues messages that are received from the server
-
-
-        public MessageReceivingService(ClientCredentials credentials)
-        {
-            Credentials = credentials;
-            ServiceState = State.Disconnected;
-            ws = new ClientWebSocket();
-            cts.CancelAfter(TimeSpan.FromSeconds(30));
-            //wsListenerThread = new Thread(RunListener);
-            //wsListenerThread.Name = "Web Socket Listener";
-            messageQueue = new ConcurrentQueue<InboundUserMessage>();
-            //wsPingThread = new Thread(PingWS);
-        }
-
-		public async Task StartService()
+	public enum MRSState { Connecting, Listening, Receiving, Aborted, Reconnecting };
+	public enum MRSCommand { Connected, Reconnect, Receive, Abort, End }
+	public class MessageReceivingService : Service<MRSState, MRSCommand, ClientWebSocket>
+	{
+		public string AuthToken { get; set; }
+		public string ServerUrl { get; private set; }
+		private ConcurrentQueue<Message> receivedMessageQueue;
+		public MessageReceivingService(Process<MRSState, MRSCommand> process, string serverUrl, string authToken) : base(process, new ClientWebSocket())
 		{
-            try
-            {
-			    await ws.ConnectAsync(new Uri(serverUrl), cts.Token);
-                await MakeSubscribeRequest();
-                //wsListenerThread.Start();
-                ServiceState = State.Running;
-            }
-            catch (Exception)
-            {
-                ServiceState = State.Disconnected; // TODO - handle the connection
-            }
+			AuthToken = authToken;
+			ServerUrl = serverUrl;
+			receivedMessageQueue = new ConcurrentQueue<Message>();
 		}
 
-		private async void RunListener()
-        {
-			while (true)
-            {
-                try
-                {
-                    var receiveMessageTask = ReceiveMessageAsync(5);
-                    await receiveMessageTask;
-                }
-                catch (Exception)
-                { 
-                    // todo - handle connections etc.
-                }
-            }
-        }
+		protected override void DefineWorkflow()
+		{
+			Process.AddStateTransition(transition: new Process<MRSState, MRSCommand>.StateTransition(currentState: MRSState.Connecting, command: MRSCommand.Connected), processState: MRSState.Listening);
+			Process.AddStateTransition(transition: new Process<MRSState, MRSCommand>.StateTransition(currentState: MRSState.Listening, command: MRSCommand.Receive), processState: MRSState.Receiving);
+			Process.AddStateTransition(transition: new Process<MRSState, MRSCommand>.StateTransition(currentState: MRSState.Receiving, command: MRSCommand.Reconnect), processState: MRSState.Reconnecting);
+			Process.AddStateTransition(transition: new Process<MRSState, MRSCommand>.StateTransition(currentState: MRSState.Receiving, command: MRSCommand.End), processState: MRSState.Listening);
+			Process.AddStateTransition(transition: new Process<MRSState, MRSCommand>.StateTransition(currentState: MRSState.Reconnecting, command: MRSCommand.End), processState: MRSState.Connecting);
+			Process.AddStateTransition(transition: new Process<MRSState, MRSCommand>.StateTransition(currentState: MRSState.Reconnecting, command: MRSCommand.Abort), processState: MRSState.Aborted);
+		}
+		public override void EndService()
+		{
+			throw new NotImplementedException();
+		}
 
-        public async void PingWS(int pingIntervalSeconds)
-        {
-            while (true)
-            {
-                Task pingTask = Ping();
-                await pingTask;
-                Thread.Sleep(TimeSpan.FromSeconds(pingIntervalSeconds));
-            }
-        }
+		public override async void StartService()
+		{
+			try
+			{
+				CancellationTokenSource cancellationTokenSource = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+				await Channel.ConnectAsync(uri: new Uri(ServerUrl), cancellationToken: cancellationTokenSource.Token);
+				await SendSubscribeRequestAsync();
+				Process.MoveToNextState(MRSCommand.Connected);
+				Process.ProcessThread = new Thread(RunServiceAsync)
+				{
+					Name = "MESSAGE_RECEIVING_SERVICE_THREAD",
+					IsBackground = true
+				};
+				Process.ProcessThread.Start();
+			}
+			catch // [NOTE]: maybe something better?
+			{
+				throw new Exception("Failed to start message receiving service");
+			}
+		}
 
-        public async Task ReceiveMessageAsync(int timeoutSeconds)
-        {
+		private async Task SendSubscribeRequestAsync()
+		{
+			try
+			{
+				CancellationTokenSource cancellationTokenSource = new CancellationTokenSource(TimeSpan.FromSeconds(3));
+				SubscribeRequest subscribeRequest = new SubscribeRequest
+				{
+					Token = AuthToken,
+					BeginTimestamp = string.Empty // [TODO]: do when you implement time stamping
+				};
+				await Channel.SendAsync(
+					buffer: subscribeRequest.ToByteArray(),
+					messageType: WebSocketMessageType.Binary,
+					endOfMessage: true,
+					cancellationToken: cancellationTokenSource.Token);
+			}
+			catch // [NOTE]: you probably should check what exception was thrown
+			{
+				Process.GoTo(MRSState.Reconnecting); // [WARNING][TODO]: never use goto, this MUST be temporary
+			}
+		}
+
+		protected override async void RunServiceAsync()
+		{
+			//[DEV_NOTES]: pinging should be simple async task that will be awaited at the end of the loop
+			while (!ServiceEnded())
+			{
+				var pingChannelTask = PingChannel();
+				switch (State)
+				{
+					case MRSState.Connecting:
+						if (Channel.State == WebSocketState.Open)
+						{
+							Process.MoveToNextState(MRSCommand.Connected);
+						}
+						break;
+					case MRSState.Listening:
+						if (Channel.State == WebSocketState.Open) // [NOTE]: I think this is dumb logic, but ok
+						{
+							Process.MoveToNextState(MRSCommand.Receive);
+						}
+						break;
+					case MRSState.Receiving:
+						try
+						{
+							(byte[] data, int offset, int length) receivedData = await ReceiveMessageAsync(5);
+							Message receivedMessage = new Message
+							{
+								InboundUserMessage = InboundUserMessage.Parser.ParseFrom(receivedData.data, receivedData.offset, receivedData.length)
+							};
+							receivedMessageQueue.Enqueue(receivedMessage);
+							Process.MoveToNextState(MRSCommand.End);
+						}
+						catch //[TODO]: I guess I should check if I am connected or not? We shall see
+						{
+							Process.GoTo(MRSState.Reconnecting); // [WARNING]: JUST STOP PLEASE FIX THIS
+						}
+						break;
+					case MRSState.Reconnecting:
+						// [NOTE]: just try to reconnect several times
+						int reconnectionAttempts = 0;
+						while(reconnectionAttempts < 3)
+						{
+							try
+							{
+								Channel.Dispose();
+								Channel = new ClientWebSocket();
+								CancellationTokenSource cancellationTokenSource = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+								await Channel.ConnectAsync(new Uri(ServerUrl), cancellationTokenSource.Token);
+								if (Channel.State == WebSocketState.Connecting || Channel.State == WebSocketState.Open)
+								{
+									Process.MoveToNextState(MRSCommand.End);
+								}
+							}
+							catch
+							{
+								reconnectionAttempts++;
+							}
+						}
+						Process.MoveToNextState(MRSCommand.Abort); // [NOTE]: I guess when the service is aborted, I should stop and destroy the process thread.
+						break;
+					default:
+						break;
+				}
+				await pingChannelTask;
+			}
+		}
+
+		protected override bool ServiceEnded()
+		{
+			return Channel.State == WebSocketState.CloseSent
+				|| Channel.State == WebSocketState.CloseReceived
+				|| Channel.State == WebSocketState.Closed
+				|| Channel.State == WebSocketState.Aborted;
+		}
+
+		private async Task<(byte[] data, int offset, int length)> ReceiveMessageAsync(int timeoutSeconds)
+		{
 			const int KILOBYTE = 1024;
 			byte[] buffer = new byte[KILOBYTE];
-			int offset = 0;
+			int byteCount = 0;
 			int free = buffer.Length;
-            var ct = new CancellationTokenSource(TimeSpan.FromSeconds(timeoutSeconds));
+			var ct = new CancellationTokenSource(TimeSpan.FromSeconds(timeoutSeconds));
 
 			while (true)
 			{
-				WebSocketReceiveResult response = await ws.ReceiveAsync(new ArraySegment<byte>(buffer, offset, free), ct.Token);
-
+				WebSocketReceiveResult response = await Channel.ReceiveAsync(new ArraySegment<byte>(buffer, byteCount, free), ct.Token);
 				if (response.EndOfMessage)
 				{
-					offset += response.Count;
+					byteCount += response.Count;
 					break;
 				}
-
-				// Enlarge if the received message is bigger than the buffer
 				if (free.Equals(response.Count))
 				{
 					int newSize = buffer.Length * 2;
@@ -108,41 +180,33 @@ namespace flare_csharp
 					Array.Copy(buffer, 0, newBuffer, 0, buffer.Length);
 
 					free = newBuffer.Length - buffer.Length;
-					offset = buffer.Length;
+					byteCount = buffer.Length;
 					buffer = newBuffer;
 				}
-
 			}
-
-            messageQueue.Enqueue(InboundUserMessage.Parser.ParseFrom(buffer));
+			return new(buffer, 0, byteCount);
 		}
 
-        public async Task MakeSubscribeRequest()
-        {
-            try
-            {
-                var request = new SubscribeRequest
-                {
-                    Token = Credentials.AuthToken
-                };
+		private async Task PingChannel()
+		{
+			try
+			{
+				CancellationTokenSource cancellationTokenSource = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+				await Channel.SendAsync(buffer: Encoding.ASCII.GetBytes("Ping me!"), messageType: WebSocketMessageType.Binary, endOfMessage: true, cancellationToken: cancellationTokenSource.Token);
+			}
+			catch (Exception) //[NOTE]: this is just that the task won't throw the exception when the connection is lost on the web socket channel
+			{
 
-                await ws.SendAsync(request.ToByteArray(), WebSocketMessageType.Binary, true, cts.Token);
+			}
+		}
 
-                cts.TryReset();
-            }
-            catch
-            {
-                // todo
-            }
-        }
-
-        public async Task Ping()
-        {
-            await ws.SendAsync(Encoding.ASCII.GetBytes("Ping me bro"), WebSocketMessageType.Binary, true, CancellationToken.None);
-        }
-
-        public int MessageReceiveCount() => messageQueue.Count;
-
-
-    }
+		public sealed class Message
+		{
+			public InboundUserMessage InboundUserMessage { get; set; }
+			public Message()
+			{
+				InboundUserMessage = new InboundUserMessage();
+			}
+		}
+	}
 }

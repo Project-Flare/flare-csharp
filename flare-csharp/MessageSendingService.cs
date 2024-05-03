@@ -3,13 +3,8 @@ using flare_csharp.Services;
 using Google.Protobuf;
 using Grpc.Core;
 using Grpc.Net.Client;
-using System;
 using System.Collections.Concurrent;
-using System.Collections.Generic;
 using System.Diagnostics;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace flare_csharp
 {
@@ -17,19 +12,21 @@ namespace flare_csharp
 	public enum MSSCommand { SendEnqueuedMessage, MessageSent, Reconnect, Reconnected, Abort }
 	public sealed class MessagingSendingService : Service<MSSState, MSSCommand, GrpcChannel>
 	{
+		public string AuthToken { get; set; }
 		public string ServerUrl { get; set; }
 		private ConcurrentQueue<Message> sendMessagesQueue;
 		private ConcurrentQueue<Message> sentMessagesQueue;
-		public MessagingSendingService(Process<MSSState, MSSCommand> process, string serverUrl) : base(process)
+		public MessagingSendingService(Process<MSSState, MSSCommand> process, string serverUrl, string authToken, GrpcChannel channel) : base(process, channel)
 		{
+			AuthToken = authToken;
 			ServerUrl = serverUrl;
 			sendMessagesQueue = new ConcurrentQueue<Message>();
 			sentMessagesQueue = new ConcurrentQueue<Message>();
 		}
-		protected override async void RunServiceAsync(GrpcChannel channel, Process<MSSState, MSSCommand> process)
+		protected override async void RunServiceAsync()
 		{
-			Messaging.MessagingClient messagingClient = new Messaging.MessagingClient(channel);
-			while (!ServiceEnded(channel))
+			Messaging.MessagingClient messagingClient = new Messaging.MessagingClient(Channel);
+			while (!ServiceEnded())
 			{
 				switch (State)
 				{
@@ -54,7 +51,7 @@ namespace flare_csharp
 								EncryptedMessage = message.EncryptMessage(),
 								RecipientUsername = message.RecipientUsername
 							};
-							Metadata headers = new Metadata { { "flare-auth", message.CurrentAuthToken } };
+							Metadata headers = new Metadata { { "flare-auth", AuthToken } };
 							DateTime deadline = DateTime.UtcNow.AddSeconds(5); // [NOTE]: this shouldn't be hardcoded
 							MessageResponse response = await messagingClient.MessageAsync(messageRequest, headers, deadline);
 							message.IsSentSuccessfully = (response.HasSuccess) ? true : false; // [TODO]: this should be handled properly
@@ -76,8 +73,8 @@ namespace flare_csharp
 							try
 							{
 								CancellationTokenSource cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
-								await channel.ConnectAsync(cts.Token);
-								if (channel.State == ConnectivityState.Ready)
+								await Channel.ConnectAsync(cts.Token);
+								if (Channel.State == ConnectivityState.Ready)
 								{
 									Process.MoveToNextState(MSSCommand.Reconnected);
 									reconnected = true;
@@ -115,16 +112,16 @@ namespace flare_csharp
 			Process.AddStateTransition(transition: new Process<MSSState, MSSCommand>.StateTransition(MSSState.Reconnecting, MSSCommand.Abort), processState: MSSState.Aborted);
 		}
 
-		protected override bool ServiceEnded(GrpcChannel channel)
+		protected override bool ServiceEnded()
 		{
-			return channel.State == Grpc.Core.ConnectivityState.TransientFailure
-				|| channel.State == Grpc.Core.ConnectivityState.Shutdown
-				|| channel.State == Grpc.Core.ConnectivityState.Shutdown;
+			return Channel.State == ConnectivityState.TransientFailure
+				|| Channel.State == ConnectivityState.Shutdown
+				|| Channel.State == ConnectivityState.Shutdown;
 		}
 
-		public override void RunService(GrpcChannel channel)
+		public override void StartService()
 		{
-			Process.ProcessThread = new Thread(() => RunServiceAsync(channel, Process))
+			Process.ProcessThread = new Thread(RunServiceAsync)
 			{
 				Name = "MESSAGE_SENDING_SERVICE_THREAD",
 				IsBackground = true
@@ -141,13 +138,11 @@ namespace flare_csharp
 		{
 			public string RecipientUsername { get; set; }
 			public string MessageText { get; set; }
-			public string CurrentAuthToken { get; set; }
 			public bool IsSentSuccessfully { get; set; }
-			public Message(string recipientUsername, string messageText, string currentAuthToken)
+			public Message(string recipientUsername, string messageText)
 			{
 				RecipientUsername = recipientUsername;
 				MessageText = messageText;
-				CurrentAuthToken = currentAuthToken;
 				IsSentSuccessfully = false;
 			}
 			public DiffieHellmanMessage EncryptMessage()
