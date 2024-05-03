@@ -1,71 +1,44 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <ClassDiagram MajorVersion="1" MinorVersion="1">
-  <Class Name="flare_csharp.ClientCredentials">
-    <Position X="2.5" Y="0.5" Width="2" />
-    <TypeIdentifier>
-      <HashCode>AACAIAgQAAAAAAAEAQAAAMIAAAAAQAACAAAAAAAAAAQ=</HashCode>
-      <FileName>ClientCredentials.cs</FileName>
-    </TypeIdentifier>
-  </Class>
-  <Class Name="flare_csharp.ClientManager">
-    <Position X="4.75" Y="0.5" Width="3.5" />
+  <Class Name="flare_csharp.Process&lt;TState, TCommand&gt;">
+    <Position X="2.5" Y="0.5" Width="2.25" />
     <Compartments>
       <Compartment Name="Nested Types" Collapsed="false" />
     </Compartments>
     <NestedTypes>
-      <Class Name="flare_csharp.ClientManager.GrpcCallFailureException" Collapsed="true">
+      <Class Name="flare_csharp.Process&lt;TState, TCommand&gt;.StateTransition">
         <TypeIdentifier>
-          <NewMemberFileName>ClientManager.cs</NewMemberFileName>
-        </TypeIdentifier>
-      </Class>
-      <Class Name="flare_csharp.ClientManager.FailedToWipeUserDataFromServerException" Collapsed="true">
-        <TypeIdentifier>
-          <NewMemberFileName>ClientManager.cs</NewMemberFileName>
-        </TypeIdentifier>
-      </Class>
-      <Class Name="flare_csharp.ClientManager.LoginFailureException" Collapsed="true">
-        <TypeIdentifier>
-          <NewMemberFileName>ClientManager.cs</NewMemberFileName>
-        </TypeIdentifier>
-      </Class>
-      <Class Name="flare_csharp.ClientManager.RegistrationFailedException" Collapsed="true">
-        <TypeIdentifier>
-          <NewMemberFileName>ClientManager.cs</NewMemberFileName>
-        </TypeIdentifier>
-      </Class>
-      <Class Name="flare_csharp.ClientManager.WrongCredentialsForArgon2Hash" Collapsed="true">
-        <TypeIdentifier>
-          <NewMemberFileName>ClientManager.cs</NewMemberFileName>
+          <NewMemberFileName>Process.cs</NewMemberFileName>
         </TypeIdentifier>
       </Class>
     </NestedTypes>
     <TypeIdentifier>
-      <HashCode>ACAAAAEAAAEEIEAAAQAAEAAQgACEAAADAgAQEAAAAUA=</HashCode>
-      <FileName>ClientManager.cs</FileName>
+      <HashCode>AAAAAAQAAAAAAABABAAAACAAAAAAAAAAAAEAAAAAAIA=</HashCode>
+      <FileName>Process.cs</FileName>
     </TypeIdentifier>
   </Class>
-  <Class Name="flare_csharp.MessageReceivingService">
-    <Position X="8.75" Y="0.5" Width="2" />
+  <Class Name="flare_csharp.Services.Service&lt;TState, TCommand, TChannel&gt;">
+    <Position X="11" Y="0.5" Width="2.75" />
+    <TypeIdentifier>
+      <HashCode>AAAAAAAAAAAAAAAAAgAAAAhAAAAAIAAAAAAgBAAAACA=</HashCode>
+      <FileName>StateMachines.cs</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Class Name="flare_csharp.Services.MessagingSendingService">
+    <Position X="6" Y="4.25" Width="3" />
     <Compartments>
       <Compartment Name="Nested Types" Collapsed="false" />
     </Compartments>
     <NestedTypes>
-      <Enum Name="flare_csharp.MessageReceivingService.State">
+      <Class Name="flare_csharp.Services.MessagingSendingService.Message">
         <TypeIdentifier>
-          <NewMemberFileName>MessageReceivingService.cs</NewMemberFileName>
+          <NewMemberFileName>StateMachines.cs</NewMemberFileName>
         </TypeIdentifier>
-      </Enum>
+      </Class>
     </NestedTypes>
     <TypeIdentifier>
-      <HashCode>AAAAAAAAQAAAEAAAAEAAAAgAABEEBBUAIQAAAAABAAA=</HashCode>
-      <FileName>MessageReceivingService.cs</FileName>
-    </TypeIdentifier>
-  </Class>
-  <Class Name="flare_csharp.MessageSendingService">
-    <Position X="11.25" Y="0.5" Width="2.25" />
-    <TypeIdentifier>
-      <HashCode>AABAAAAgAABAMAAAAAgAAAgAAAAEABAAAAAAAAAAAAA=</HashCode>
-      <FileName>MessageSendingService.cs</FileName>
+      <HashCode>AAAAAAAAAAAAAAACACIAAAhAAAAAIAABAAAgAAAAACA=</HashCode>
+      <FileName>StateMachines.cs</FileName>
     </TypeIdentifier>
   </Class>
   <Font Name="Segoe UI" Size="9" />
