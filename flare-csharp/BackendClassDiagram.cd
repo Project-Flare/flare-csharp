@@ -20,7 +20,7 @@
   <Class Name="flare_csharp.Services.Service&lt;TState, TCommand, TChannel&gt;">
     <Position X="11" Y="0.5" Width="2.75" />
     <TypeIdentifier>
-      <HashCode>AAAAAAAAAAAAAAAAAgAAAAhAAAAAIAAAAAAgBAAAACA=</HashCode>
+      <HashCode>AAAAAAAgAAAAAAAAAgAAAABAAAAAIBAAAAAgBAAAACA=</HashCode>
       <FileName>Services.cs</FileName>
     </TypeIdentifier>
   </Class>
@@ -37,7 +37,7 @@
       </Class>
     </NestedTypes>
     <TypeIdentifier>
-      <HashCode>AAAAAAAAAAAAAAACACIAAAhAAAAAIAABAAAgAAAAACA=</HashCode>
+      <HashCode>AAAAAAAQAAAAAAACACIAAABAAAAAIBABAAAgAAAAACA=</HashCode>
       <FileName>MessageSendingService.cs</FileName>
     </TypeIdentifier>
   </Class>
