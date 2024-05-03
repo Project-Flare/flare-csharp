@@ -7,17 +7,16 @@ using System.Threading.Tasks;
 
 namespace flare_csharp
 {
-	public class Process<T>
+	public sealed class Process<TState, TCommand> where TState : Enum where TCommand : Enum
 	{
-		public T CurrentState { get; set; }
-		public enum Command { Start, Success, Failure, Abort }
-		public Dictionary<StateTransition, T> StateTransitions { get; set; }
+		public TState CurrentState { get; set; }
+		public Dictionary<StateTransition, TState> StateTransitions { get; private set; }
 		public Thread? ProcessThread { get; set; }
-		public class StateTransition
+		public sealed class StateTransition
 		{
-			public readonly T CurrentState;
-			public readonly Command Command;
-			public StateTransition(T currentState, Command command)
+			public readonly TState CurrentState;
+			public readonly TCommand Command;
+			public StateTransition(TState currentState, TCommand command)
 			{
 				CurrentState = currentState;
 				Command = command;
@@ -29,29 +28,31 @@ namespace flare_csharp
 			public override bool Equals(object? obj)
 			{
 				StateTransition? otherState = obj as StateTransition;
-				return otherState is null ? false : otherState.CurrentState!.Equals(this.CurrentState);
+				return otherState is not null
+					&& otherState.CurrentState.Equals(CurrentState)
+					&& Command.Equals(otherState.Command);
 			}
 			public override string ToString()
 			{
-				return $"{Command}|{CurrentState}|{this.GetHashCode()}";
+				return $"{Command}|{CurrentState}|{GetHashCode()}";
 			}
 		}
-		public Process(T initialState)
+		public Process(TState initialState)
 		{
 			CurrentState = initialState;
-			StateTransitions = new Dictionary<StateTransition, T>();
+			StateTransitions = new Dictionary<StateTransition, TState>();
 			ProcessThread = null;
 		}
-		public void AddStateTransition(StateTransition transition, T processState)
+		public void AddStateTransition(StateTransition transition, TState processState)
 		{
 			if (!StateTransitions.Contains(
-				new KeyValuePair<StateTransition, T>(transition, processState)))
+				new KeyValuePair<StateTransition, TState>(transition, processState)))
 				StateTransitions.Add(transition, processState);
 		}
-		public T MoveToNextState(Command command)
+		public TState MoveToNextState(TCommand command)
 		{
 			var transition = new StateTransition(CurrentState, command);
-			T? nextProcessState;
+			TState? nextProcessState;
 			if (!StateTransitions.TryGetValue(transition, out nextProcessState))
 			{
 				throw new KeyNotFoundException($"State transition from {CurrentState} with {command} was not defined");
@@ -59,7 +60,11 @@ namespace flare_csharp
 			CurrentState = nextProcessState!;
 			return nextProcessState!;
 		}
-		public void GoTo(T gotoState)
+		/// <summary>
+		/// ONLY used when certain unexpected error occur, the process directly goes to the specified state.
+		/// </summary>
+		/// <param name="gotoState">State to go to without any conditions</param>
+		public void GoTo(TState gotoState)
 		{
 			CurrentState = gotoState;
 		}

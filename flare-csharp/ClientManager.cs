@@ -78,7 +78,7 @@ namespace flare_csharp
         /// <summary>
         /// gRPC channel through communication between client and server happens.
         /// </summary>
-        private GrpcChannel channel;
+        public GrpcChannel channel { get; set; }
 
         /// <summary>
         /// Authentication client service.
