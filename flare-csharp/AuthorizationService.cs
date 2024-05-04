@@ -30,6 +30,7 @@ namespace flare_csharp
 		}
 		public override void EndService()
 		{
+			
 			throw new NotImplementedException();
 		}
 		public override void StartService()
@@ -204,7 +205,7 @@ namespace flare_csharp
 			{
 				IdentityPublicKey = "IDK", //[WARNING][TODO]
 				Username = credentials.Username,
-				Password = credentials.Argon2Hash
+				Password = credentials.PasswordHash
 			};
 			cancellationTokenSource = new CancellationTokenSource(TimeSpan.FromSeconds(10));
 			LoginResponse loginResponse = authClient.Login(request: loginRequest, headers: null, deadline: null, cancellationTokenSource.Token);
