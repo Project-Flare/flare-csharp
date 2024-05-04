@@ -3,9 +3,20 @@
     public class Credentials
     {
         /// <summary>
-        /// Client's username.
+        /// 64 MB
         /// </summary>
-        public string Username { get; set; } = string.Empty;
+        public const int MIN_MEMORY_COST_BYTES = 65_536;
+        /// <summary>
+        /// 128 MB
+        /// </summary>
+        public const int MEMORY_COST_BYTES = 131_072;
+        public const int MIN_TIME_COST = 3;
+        public const int TIME_COST = 3;
+        public const int MIN_SALT_ENTROPY = 31;
+		/// <summary>
+		/// Client's username.
+		/// </summary>
+		public string Username { get; set; } = string.Empty;
 
         /// <summary>
         /// Client's password, most likely will be 8-digit PIN.
@@ -44,7 +55,7 @@
         {
             get => Argon2Hash.Split('$').Last();
         }
-
+        public string Salt { get; set; } = string.Empty;
         /// <summary>
         /// Received authentication token from the server when logging in or registering. Thread safe (source - kinda trust me bro)
         /// </summary>

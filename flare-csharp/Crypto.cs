@@ -13,8 +13,16 @@ namespace flare_csharp
         /// <param name="cred">Credentials to be used to generate argon2 hash for these specific credentials.</param>
         public static void HashPasswordArgon2i(Credentials cred)
         {
-            cred.SecureRandom = RandomNumberGenerator.GetBytes(16).ToB64String();
-            string salt = cred.PseudoRandomConstant + cred.SecureRandom;
+            string salt;
+            if (cred.Salt == string.Empty)
+            {
+				cred.SecureRandom = RandomNumberGenerator.GetBytes(16).ToB64String();
+				salt = cred.PseudoRandomConstant + cred.SecureRandom;
+			}
+            else
+            {
+                salt = cred.Salt;
+            }
 
             // Set the appropriate configuration for hashing PIN code
             Argon2Config argonConfig = new()

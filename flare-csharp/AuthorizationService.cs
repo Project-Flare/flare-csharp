@@ -5,11 +5,14 @@ using static Flare.V1.Auth;
 using Zxcvbn;
 using System.Text.RegularExpressions;
 using System.Text;
+using System.Security.Authentication;
+using System.Security;
+using System.Threading;
 
 namespace flare_csharp
 {
-	public enum ASState { Initialized, Connecting, ReceivingCredentialRequirements, SettingCreds, Registering, Reconnecting, Aborted, EndedSuccessfully }
-	public enum ASCommand { Success, Fail, Abort }
+	public enum ASState { Initialized, Connecting, ReceivingCredentialRequirements, SettingCreds, Registering, LoggingIn, Reconnecting, Aborted, EndedSuccessfully }
+	public enum ASCommand { Success, Fail, Abort, UserHasAccount, Reconnect }
 	public class AuthorizationService : Service<ASState, ASCommand, GrpcChannel>
 	{
 		private AuthClient authClient;
@@ -18,11 +21,11 @@ namespace flare_csharp
 		private Credentials credentials;
 		public string Username { get => credentials.Username; }
 		public string Password { get => credentials.Password; }
-		public AuthorizationService(string serverUrl, GrpcChannel channel) : base(new Process<ASState, ASCommand>(ASState.Initialized), channel)
+		public AuthorizationService(string serverUrl, GrpcChannel channel, Credentials? credentials) : base(new Process<ASState, ASCommand>(ASState.Initialized), channel)
 		{
 			ServerUrl = serverUrl;
 			UserCredentialRequirements = new CredentialRequirements();
-			credentials = new Credentials();
+			this.credentials = (credentials is null) ? new Credentials() : credentials;
 			authClient = new AuthClient(Channel);
 		}
 		public override void EndService()
@@ -59,7 +62,10 @@ namespace flare_csharp
 						{
 							CancellationTokenSource cancellationTokenSource = new CancellationTokenSource(TimeSpan.FromSeconds(5));
 							await Channel.ConnectAsync(cancellationTokenSource.Token);
-							Process.MoveToNextState(ASCommand.Success);
+							if (credentials.Username == string.Empty && credentials.Password == string.Empty)
+								Process.MoveToNextState(ASCommand.Success);
+							else
+								Process.MoveToNextState(ASCommand.UserHasAccount);
 						}
 						catch
 						{
@@ -105,15 +111,129 @@ namespace flare_csharp
 							Process.MoveToNextState(ASCommand.Abort);
 						}
 						break;
+					case ASState.LoggingIn:
+						try
+						{
+							LoginToServer();
+							Process.MoveToNextState(ASCommand.Success);
+						}
+						catch (AuthenticationException)
+						{
+							Process.MoveToNextState(ASCommand.Abort);
+						}
+						catch (SecurityException)
+						{
+							Process.MoveToNextState(ASCommand.Abort);
+						}
+						catch (Exception)
+						{
+							Process.MoveToNextState(ASCommand.Reconnect);
+						}
+						break;
+					case ASState.Reconnecting:
+						try
+						{
+							CancellationTokenSource cancellationTokenSource = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+							await Channel.ConnectAsync(cancellationTokenSource.Token);
+							Process.MoveToNextState(ASCommand.Success);
+						}
+						catch
+						{
+							Process.MoveToNextState(ASCommand.Abort);
+						}
+						break;
 					default:
 						break;
 				}
 			}
 		}
+		public delegate void LoggedInToServerDelegate(LoggedInEventArgs loggedInEventArgs);
+		public event LoggedInToServerDelegate? LoggedInToServerEvent;
+		public class LoggedInEventArgs : EventArgs
+		{
+			public bool LoggedInSuccessfully { get; private set; }
+			public enum FailureReason { None, UntrustworthyServer,  PasswordInvalid, UsernameInvalid, ServerError, UsernameNotExist, MissingParameters, Unknown }
+			public FailureReason LoginFailureReason { get; private set; }
+			public LoggedInEventArgs(bool success, FailureReason? failureReason)
+			{
+				LoggedInSuccessfully = success;
+				LoginFailureReason = (FailureReason)((failureReason is null) ? FailureReason.None : failureReason!);
+			}
+		}
+		private void OnLoggedInToServer(LoggedInEventArgs loggedInEventArgs)
+		{
+			LoggedInToServerEvent?.Invoke(loggedInEventArgs);
+		}
+		private void LoginToServer()
+		{
+			GetClientHashParamsRequest getClientHashParamsRequest = new GetClientHashParamsRequest
+			{
+				Username = credentials.Username
+			};
+			CancellationTokenSource cancellationTokenSource = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+			GetClientHashParamsResponse getClientHashParamsResponse = authClient.GetClientHashParams(getClientHashParamsRequest, headers: null, deadline: null, cancellationTokenSource.Token);
+			if (getClientHashParamsResponse.HasError)
+			{
+				LoggedInEventArgs.FailureReason failureReason = LoggedInEventArgs.FailureReason.Unknown;
+				switch (getClientHashParamsResponse.Error)
+				{
+					case GetClientHashParamsResponse.Types.GetClientHashParamsError.UserNotFound:
+						failureReason = LoggedInEventArgs.FailureReason.UsernameNotExist;
+						break;
+					case GetClientHashParamsResponse.Types.GetClientHashParamsError.Missing:
+						failureReason = LoggedInEventArgs.FailureReason.MissingParameters;
+						break;
+					default:
+						failureReason = LoggedInEventArgs.FailureReason.Unknown;
+						break;
+				}
+				OnLoggedInToServer(new LoggedInEventArgs(success: false, failureReason));
+				throw new AuthenticationException($"Failed to login to server with {credentials.Username} because {getClientHashParamsResponse.GetClientHashParamsResultCase}");
+			}
+			HashParams hashParams = getClientHashParamsResponse.Params;
+			if (hashParams.MemoryCost < Credentials.MIN_MEMORY_COST_BYTES || hashParams.TimeCost < Credentials.MIN_TIME_COST || CredentialRequirements.GetBitEntropy(hashParams.Salt) < Credentials.MIN_SALT_ENTROPY) // the server is untrustworthy!
+			{
+				OnLoggedInToServer(new LoggedInEventArgs(success: false, LoggedInEventArgs.FailureReason.UntrustworthyServer));
+				throw new SecurityException($"Server sent less than minimum requirements to {hashParams.GetType().Name}");
+			}
+			credentials.MemoryCostBytes = (int)hashParams.MemoryCost;
+			credentials.TimeCost = (int)hashParams.TimeCost;
+			credentials.Salt = hashParams.Salt;
+			Crypto.HashPasswordArgon2i(credentials);
+			LoginRequest loginRequest = new LoginRequest
+			{
+				IdentityPublicKey = "IDK", //[WARNING][TODO]
+				Username = credentials.Username,
+				Password = credentials.Argon2Hash
+			};
+			cancellationTokenSource = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+			LoginResponse loginResponse = authClient.Login(request: loginRequest, headers: null, deadline: null, cancellationTokenSource.Token);
+			if (loginResponse.HasFailure)
+			{
+				LoggedInEventArgs.FailureReason failureReason = LoggedInEventArgs.FailureReason.Unknown;
+				switch(loginResponse.Failure)
+				{
+					case LoginResponse.Types.LoginFailure.UsernameInvalid:
+						failureReason = LoggedInEventArgs.FailureReason.UsernameInvalid;
+						break;
+					case LoginResponse.Types.LoginFailure.PasswordInvalid:
+						failureReason = LoggedInEventArgs.FailureReason.PasswordInvalid;
+						break;
+					default:
+						failureReason = LoggedInEventArgs.FailureReason.Unknown;
+						break;
+				}
+				OnLoggedInToServer(new LoggedInEventArgs(success: false, failureReason));
+				throw new AbandonedMutexException($"Failed to login to server with {credentials.Username} because {loginResponse.Failure}");
+			}
+			credentials.AuthToken = loginResponse.Token;
+			OnLoggedInToServer(new LoggedInEventArgs(success: true, failureReason: null));
+		}
 		protected override void DefineWorkflow()
 		{
 			Process.AddStateTransition(transition: new Process<ASState, ASCommand>.StateTransition(currentState: ASState.Initialized, command: ASCommand.Success), processState: ASState.Connecting);
 			Process.AddStateTransition(transition: new Process<ASState, ASCommand>.StateTransition(currentState: ASState.Initialized, command: ASCommand.Abort), processState: ASState.Aborted);
+			Process.AddStateTransition(transition: new Process<ASState, ASCommand>.StateTransition(currentState: ASState.Connecting, command: ASCommand.UserHasAccount), processState: ASState.LoggingIn);
 			Process.AddStateTransition(transition: new Process<ASState, ASCommand>.StateTransition(currentState: ASState.Connecting, command: ASCommand.Success), processState: ASState.ReceivingCredentialRequirements);
 			Process.AddStateTransition(transition: new Process<ASState, ASCommand>.StateTransition(currentState: ASState.Connecting, command: ASCommand.Fail), processState: ASState.Reconnecting);
 			Process.AddStateTransition(transition: new Process<ASState, ASCommand>.StateTransition(currentState: ASState.ReceivingCredentialRequirements, command: ASCommand.Success), processState: ASState.SettingCreds);
@@ -123,6 +243,12 @@ namespace flare_csharp
 			Process.AddStateTransition(transition: new Process<ASState, ASCommand>.StateTransition(currentState: ASState.SettingCreds, command: ASCommand.Success), processState: ASState.Registering);
 			Process.AddStateTransition(transition: new Process<ASState, ASCommand>.StateTransition(currentState: ASState.Registering, command: ASCommand.Abort), processState: ASState.Reconnecting);
 			Process.AddStateTransition(transition: new Process<ASState, ASCommand>.StateTransition(currentState: ASState.Registering, command: ASCommand.Success), processState: ASState.EndedSuccessfully);
+			Process.AddStateTransition(transition: new Process<ASState, ASCommand>.StateTransition(currentState: ASState.LoggingIn, command: ASCommand.Abort), processState: ASState.Aborted);
+			Process.AddStateTransition(transition: new Process<ASState, ASCommand>.StateTransition(currentState: ASState.LoggingIn, command: ASCommand.Fail), processState: ASState.ReceivingCredentialRequirements);
+			Process.AddStateTransition(transition: new Process<ASState, ASCommand>.StateTransition(currentState: ASState.LoggingIn, command: ASCommand.Reconnect), processState: ASState.Reconnecting);
+			Process.AddStateTransition(transition: new Process<ASState, ASCommand>.StateTransition(currentState: ASState.LoggingIn, command: ASCommand.Success), processState: ASState.EndedSuccessfully);
+			Process.AddStateTransition(transition: new Process<ASState, ASCommand>.StateTransition(currentState: ASState.Reconnecting, command: ASCommand.Success), processState: ASState.Connecting);
+			Process.AddStateTransition(transition: new Process<ASState, ASCommand>.StateTransition(currentState: ASState.Reconnecting, command: ASCommand.Abort), processState: ASState.Aborted);
 		}
 		/// <summary>
 		/// Sets <see cref="credentials"/> <see cref="Credentials.AuthToken"/> property if the registration was successful.
@@ -135,7 +261,7 @@ namespace flare_csharp
 		}
 		private async Task<RegisterResponse> RegisterToServerAsync()
 		{
-			credentials.MemoryCostBytes = 126_976;
+			credentials.MemoryCostBytes = Credentials.MEMORY_COST_BYTES;
 			credentials.TimeCost = 3;
 			Crypto.HashPasswordArgon2i(credentials);
 			HashParams hashParams = new HashParams
@@ -153,7 +279,6 @@ namespace flare_csharp
 			};
 			CancellationTokenSource cancellationTokenSource = new CancellationTokenSource(TimeSpan.FromSeconds(10));
 			RegisterResponse registerResponse = await authClient.RegisterAsync(registerRequest, headers: null, deadline: null, cancellationTokenSource.Token);
-			ObliviateResponse removeResponse = await authClient.ObliviateAsync(new ObliviateRequest { Lockdown = false }, headers: new Grpc.Core.Metadata { { "flare-auth", registerResponse.Token } }); //[TODO]: remove this
 			return registerResponse;
 		}
 
@@ -340,7 +465,8 @@ namespace flare_csharp
 		{
 			return Channel.State == Grpc.Core.ConnectivityState.Shutdown
 				|| Channel.State == Grpc.Core.ConnectivityState.TransientFailure
-				|| State == ASState.Aborted;
+				|| State == ASState.Aborted
+				|| State == ASState.EndedSuccessfully;
 		}
 
 		public class CredentialRequirements
