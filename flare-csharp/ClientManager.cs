@@ -51,7 +51,7 @@ namespace flare_csharp
         }
 
         /// <summary>
-        /// Failed to generate correct argon2 hash using <see cref="Crypto.HashPasswordArgon2i(ref ClientCredentials)"/> hash method.
+        /// Failed to generate correct argon2 hash using <see cref="Crypto.HashPasswordArgon2i(ref Credentials)"/> hash method.
         /// </summary>
         public class WrongCredentialsForArgon2Hash : Exception { }
 
@@ -73,7 +73,7 @@ namespace flare_csharp
         /// <summary>
         /// This holds important credential information of the client.
         /// </summary>
-        public ClientCredentials Credentials { get; set; }
+        public Credentials Credentials { get; set; }
 
         /// <summary>
         /// gRPC channel through communication between client and server happens.
@@ -94,7 +94,7 @@ namespace flare_csharp
         {
             const int MEM_COST_BYTES = 1024 * 512; // 512MB
             const int TIME_COST = 3;
-            Credentials = new ClientCredentials(MEM_COST_BYTES, TIME_COST);
+            Credentials = new Credentials(MEM_COST_BYTES, TIME_COST);
 
             ServerUrl = new string(serverUrl);
             Password = string.Empty;
@@ -159,11 +159,11 @@ namespace flare_csharp
         }
 
         /// <summary>
-        /// Correctly specified user credentials will be hashed by secure argon2i <see cref="Crypto.HashPasswordArgon2i(ref ClientCredentials)"/> method. <see cref="Password"/> must be set and will be used as password to generate password hash. Registration
+        /// Correctly specified user credentials will be hashed by secure argon2i <see cref="Crypto.HashPasswordArgon2i(ref Credentials)"/> method. <see cref="Password"/> must be set and will be used as password to generate password hash. Registration
         /// and login without hashing password will fail.
         /// </summary>
         /// <exception cref="WrongCredentialsForArgon2Hash">
-        /// Thrown when the credential parameters or password do not match the requirements to securely hash password using <see cref="Crypto.HashPasswordArgon2i(ref ClientCredentials)"/>
+        /// Thrown when the credential parameters or password do not match the requirements to securely hash password using <see cref="Crypto.HashPasswordArgon2i(ref Credentials)"/>
         /// </exception>
         public void HashPassword()
         {

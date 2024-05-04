@@ -11,12 +11,12 @@ namespace flare_csharp
 	{
 		public Uri ServerUri { get; set; }
 		public GrpcChannel GrpcChannel { get; set; }
-		public ClientCredentials Credentials { get; set; }
+		public Credentials Credentials { get; set; }
 		public MainManager()
 		{
 			ServerUri = new Uri("https://rpc.f2.project-flare.net");
 			GrpcChannel = GrpcChannel.ForAddress(ServerUri);
-			Credentials = new ClientCredentials(1024 * 64, 3);
+			Credentials = new Credentials(1024 * 64, 3);
 			// Get credential requirements -> kinda process
 			// Username validation (GetUsernameOpinion, )
 		}

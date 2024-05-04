@@ -8,10 +8,10 @@ namespace flare_csharp
     public static class Crypto
     {
         /// <summary>
-        /// Used to generate password hash with set parameters in <see cref="ClientCredentials"/> class.
+        /// Used to generate password hash with set parameters in <see cref="Credentials"/> class.
         /// </summary>
         /// <param name="cred">Credentials to be used to generate argon2 hash for these specific credentials.</param>
-        public static void HashPasswordArgon2i(ClientCredentials cred)
+        public static void HashPasswordArgon2i(Credentials cred)
         {
             cred.SecureRandom = RandomNumberGenerator.GetBytes(16).ToB64String();
             string salt = cred.PseudoRandomConstant + cred.SecureRandom;

@@ -1,6 +1,6 @@
 ﻿namespace flare_csharp
 {
-    public class ClientCredentials
+    public class Credentials
     {
         /// <summary>
         /// Client's username.
@@ -13,7 +13,7 @@
         public string Password { get; set; } = string.Empty;
 
         /// <summary>
-        /// Full generated argon2 hash in <see cref="Crypto.HashPasswordArgon2i(ref ClientCredentials)"/> method.
+        /// Full generated argon2 hash in <see cref="Crypto.HashPasswordArgon2i(ref Credentials)"/> method.
         /// </summary>
         public string Argon2Hash { get; set; } = string.Empty;
 
@@ -30,12 +30,12 @@
         /// <summary>
         /// How much bytes are used to hash <see cref="Password"/> in argon2 hash function.
         /// </summary>
-        public int MemoryCostBytes { get; private set; }
+        public int MemoryCostBytes { get; private set; } = -1;
 
         /// <summary>
         /// Also the argon2 hash parameter, must be saved.
         /// </summary>
-        public int TimeCost { get; private set; }
+        public int TimeCost { get; private set; } = -1;
 
         /// <summary>
         /// Only hash of the <see cref="Password"/>
@@ -50,12 +50,14 @@
         /// </summary>
         public string AuthToken { get; set; } = string.Empty;
 
+        public Credentials() { }
 
-        public ClientCredentials(int memoryCostBytes, int timeCost) 
+        public Credentials(int memoryCostBytes, int timeCost) 
         {
             MemoryCostBytes = memoryCostBytes;
             TimeCost = timeCost;
         }
+
 
         public override string ToString()
         {
