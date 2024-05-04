@@ -8,7 +8,7 @@ using System.Text;
 
 namespace flare_csharp
 {
-	public enum ASState { Initialized, Connecting, FetchingCredReq, SettingCreds, Registering, Reconnecting, Aborted }
+	public enum ASState { Initialized, Connecting, ReceivingCredentialRequirements, SettingCreds, Registering, Reconnecting, Aborted, EndedSuccessfully }
 	public enum ASCommand { Success, Fail, Abort }
 	public class AuthorizationService : Service<ASState, ASCommand, GrpcChannel>
 	{
@@ -66,10 +66,10 @@ namespace flare_csharp
 							Process.MoveToNextState(ASCommand.Fail);
 						}
 						break;
-					case ASState.FetchingCredReq:
+					case ASState.ReceivingCredentialRequirements:
 						try
 						{
-							await FetchCredentialRequirements(authClient);
+							await ReceiveCredentialRequirements();
 							Process.MoveToNextState(ASCommand.Success);
 						}
 						catch
@@ -80,7 +80,7 @@ namespace flare_csharp
 					case ASState.SettingCreds:
 						try
 						{
-							OnCredentialRequirementsReceived(new AuthServiceEventArgs(UserCredentialRequirements));
+							OnCredentialRequirementsReceived(new ReceivedRequirementsEventArgs(UserCredentialRequirements));
 						}
 						catch
 						{
@@ -89,6 +89,20 @@ namespace flare_csharp
 						if (Username != string.Empty && Password != string.Empty)
 						{
 							Process.MoveToNextState(ASCommand.Success);
+						}
+						break;
+					case ASState.Registering:
+						try
+						{
+							RegisterResponse registerResponse = await RegisterToServerAsync();
+							RegistrationToServerEvent += SetAuthToken;
+							OnRegistrationToServer(new RegistrationToServerEventArgs(registerResponse));
+							RegistrationToServerEvent -= SetAuthToken;
+							Process.MoveToNextState(ASCommand.Success);
+						}
+						catch
+						{
+							Process.MoveToNextState(ASCommand.Abort);
 						}
 						break;
 					default:
@@ -100,22 +114,116 @@ namespace flare_csharp
 		{
 			Process.AddStateTransition(transition: new Process<ASState, ASCommand>.StateTransition(currentState: ASState.Initialized, command: ASCommand.Success), processState: ASState.Connecting);
 			Process.AddStateTransition(transition: new Process<ASState, ASCommand>.StateTransition(currentState: ASState.Initialized, command: ASCommand.Abort), processState: ASState.Aborted);
-			Process.AddStateTransition(transition: new Process<ASState, ASCommand>.StateTransition(currentState: ASState.Connecting, command: ASCommand.Success), processState: ASState.FetchingCredReq);
+			Process.AddStateTransition(transition: new Process<ASState, ASCommand>.StateTransition(currentState: ASState.Connecting, command: ASCommand.Success), processState: ASState.ReceivingCredentialRequirements);
 			Process.AddStateTransition(transition: new Process<ASState, ASCommand>.StateTransition(currentState: ASState.Connecting, command: ASCommand.Fail), processState: ASState.Reconnecting);
-			Process.AddStateTransition(transition: new Process<ASState, ASCommand>.StateTransition(currentState: ASState.FetchingCredReq, command: ASCommand.Success), processState: ASState.SettingCreds);
-			Process.AddStateTransition(transition: new Process<ASState, ASCommand>.StateTransition(currentState: ASState.FetchingCredReq, command: ASCommand.Fail), processState: ASState.Reconnecting);
+			Process.AddStateTransition(transition: new Process<ASState, ASCommand>.StateTransition(currentState: ASState.ReceivingCredentialRequirements, command: ASCommand.Success), processState: ASState.SettingCreds);
+			Process.AddStateTransition(transition: new Process<ASState, ASCommand>.StateTransition(currentState: ASState.ReceivingCredentialRequirements, command: ASCommand.Fail), processState: ASState.Reconnecting);
 			Process.AddStateTransition(transition: new Process<ASState, ASCommand>.StateTransition(currentState: ASState.SettingCreds, command: ASCommand.Abort), processState: ASState.Aborted);
-			Process.AddStateTransition(transition: new Process<ASState, ASCommand>.StateTransition(currentState: ASState.SettingCreds, command: ASCommand.Fail), processState: ASState.FetchingCredReq);
+			Process.AddStateTransition(transition: new Process<ASState, ASCommand>.StateTransition(currentState: ASState.SettingCreds, command: ASCommand.Fail), processState: ASState.ReceivingCredentialRequirements);
 			Process.AddStateTransition(transition: new Process<ASState, ASCommand>.StateTransition(currentState: ASState.SettingCreds, command: ASCommand.Success), processState: ASState.Registering);
+			Process.AddStateTransition(transition: new Process<ASState, ASCommand>.StateTransition(currentState: ASState.Registering, command: ASCommand.Abort), processState: ASState.Reconnecting);
+			Process.AddStateTransition(transition: new Process<ASState, ASCommand>.StateTransition(currentState: ASState.Registering, command: ASCommand.Success), processState: ASState.EndedSuccessfully);
+		}
+		/// <summary>
+		/// Sets <see cref="credentials"/> <see cref="Credentials.AuthToken"/> property if the registration was successful.
+		/// </summary>
+		/// <param name="eventArgs">Registration to server event arguments.</param>
+		private void SetAuthToken(RegistrationToServerEventArgs eventArgs)
+		{
+			if (eventArgs.RegistrationForm.UserRegisteredSuccessfully)
+				credentials.AuthToken = eventArgs.RegistrationForm.AuthToken;
+		}
+		private async Task<RegisterResponse> RegisterToServerAsync()
+		{
+			credentials.MemoryCostBytes = 126_976;
+			credentials.TimeCost = 3;
+			Crypto.HashPasswordArgon2i(credentials);
+			HashParams hashParams = new HashParams
+			{
+				MemoryCost = (ulong)credentials.MemoryCostBytes,
+				TimeCost = (ulong)credentials.TimeCost,
+				Salt = credentials.PseudoRandomConstant + credentials.SecureRandom
+			};
+			RegisterRequest registerRequest = new RegisterRequest
+			{
+				Username = this.Username,
+				HashParams = hashParams,
+				IdentityPublicKey = "IDK", //[WARNING]
+				PasswordHash = credentials.PasswordHash
+			};
+			CancellationTokenSource cancellationTokenSource = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+			RegisterResponse registerResponse = await authClient.RegisterAsync(registerRequest, headers: null, deadline: null, cancellationTokenSource.Token);
+			ObliviateResponse removeResponse = await authClient.ObliviateAsync(new ObliviateRequest { Lockdown = false }, headers: new Grpc.Core.Metadata { { "flare-auth", registerResponse.Token } }); //[TODO]: remove this
+			return registerResponse;
 		}
 
-		private async Task FetchCredentialRequirements(AuthClient authClient)
+		public delegate void RegistrationToServerDelegate(RegistrationToServerEventArgs eventArgs);
+		public event RegistrationToServerDelegate? RegistrationToServerEvent;
+		public class RegistrationToServerEventArgs : EventArgs
+		{
+			public RegistrationResponse RegistrationForm { get; private set; }
+			public RegistrationToServerEventArgs(RegisterResponse registerResponse)
+			{
+				RegistrationForm = new RegistrationResponse(registerResponse);
+			}
+			public class RegistrationResponse
+			{
+				public enum FailureReason { None, UsernameIsTaken, BadUsername, BadPassword, Unknown }
+				public FailureReason RegistrationFailureReason 
+				{ 
+					get
+					{
+						if (!registerResponse.HasFailure)
+							return FailureReason.None;
+
+						switch (registerResponse.Failure)
+						{
+							case RegisterResponse.Types.RegisterFailure.UsernameTaken:
+								return FailureReason.UsernameIsTaken;
+							case RegisterResponse.Types.RegisterFailure.UsernameBad:
+								return FailureReason.BadUsername;
+							case RegisterResponse.Types.RegisterFailure.PasswordBad:
+								return FailureReason.BadPassword;
+							default:
+								return FailureReason.Unknown;
+						}
+					} 
+				}
+				public bool UserRegisteredSuccessfully { get => registerResponse.HasToken; }
+				public string AuthToken { get => registerResponse.HasToken ? registerResponse.Token : string.Empty; }
+				private RegisterResponse registerResponse { get; set; }
+				public RegistrationResponse(RegisterResponse registerResponse)
+				{
+					this.registerResponse = registerResponse;
+				}
+			}
+		}
+		public void OnRegistrationToServer(RegistrationToServerEventArgs eventArgs)
+		{
+			RegistrationToServerEvent?.Invoke(eventArgs);
+		}
+		private async Task ReceiveCredentialRequirements()
 		{
 			CancellationTokenSource cancellationTokenSource = new CancellationTokenSource(TimeSpan.FromSeconds(5));
 			RequirementsResponse requirementsResponse = await authClient.GetCredentialRequirementsAsync(
 				new RequirementsRequest { }, headers: null, deadline: null, cancellationTokenSource.Token);
 			UserCredentialRequirements.ValidUsernameRules = new CredentialRequirements.UsernameRequirements(requirementsResponse);
 			UserCredentialRequirements.ValidPasswordRules = new CredentialRequirements.PasswordRequirements(requirementsResponse);
+		}
+
+		public delegate void CredentialRequirementsReceivedDelegate(ReceivedRequirementsEventArgs eventArgs);
+		public class ReceivedRequirementsEventArgs : EventArgs
+		{
+			public CredentialRequirements CredentialRequirements { get; private set; }
+			public ReceivedRequirementsEventArgs(CredentialRequirements credentialRequirements)
+			{
+				CredentialRequirements = credentialRequirements;
+			}
+		}
+		public event CredentialRequirementsReceivedDelegate? ReceivedCredentialRequirements;
+		public void OnCredentialRequirementsReceived(ReceivedRequirementsEventArgs eventArgs)
+		{
+			ReceivedCredentialRequirements?.Invoke(eventArgs);
 		}
 
 		public enum PasswordState { NA, IsBlank, TooLong, NotAllAscii, TooWeak, NotAlphanumerical, VeryWeak, Decent, Good, Great, Excellent }
@@ -233,21 +341,6 @@ namespace flare_csharp
 			return Channel.State == Grpc.Core.ConnectivityState.Shutdown
 				|| Channel.State == Grpc.Core.ConnectivityState.TransientFailure
 				|| State == ASState.Aborted;
-		}
-
-		public delegate void CredentialRequirementsReceived(AuthServiceEventArgs eventArgs);
-		public class AuthServiceEventArgs : EventArgs
-		{
-			public CredentialRequirements CredentialRequirements { get; private set; }
-			public AuthServiceEventArgs(CredentialRequirements credentialRequirements)
-			{
-				CredentialRequirements = credentialRequirements;
-			}
-		}
-		public event CredentialRequirementsReceived? ReceivedCredentialRequirements;
-		public void OnCredentialRequirementsReceived(AuthServiceEventArgs eventArgs)
-		{
-			ReceivedCredentialRequirements?.Invoke(eventArgs);
 		}
 
 		public class CredentialRequirements

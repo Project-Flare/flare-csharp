@@ -30,12 +30,12 @@
         /// <summary>
         /// How much bytes are used to hash <see cref="Password"/> in argon2 hash function.
         /// </summary>
-        public int MemoryCostBytes { get; private set; } = -1;
+        public int MemoryCostBytes { get; set; } = -1;
 
         /// <summary>
         /// Also the argon2 hash parameter, must be saved.
         /// </summary>
-        public int TimeCost { get; private set; } = -1;
+        public int TimeCost { get; set; } = -1;
 
         /// <summary>
         /// Only hash of the <see cref="Password"/>

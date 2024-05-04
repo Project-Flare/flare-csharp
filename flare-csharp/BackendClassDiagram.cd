@@ -1,50 +1,12 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <ClassDiagram MajorVersion="1" MinorVersion="1">
-  <Class Name="flare_csharp.ClientCredentials">
-    <Position X="2.5" Y="0.5" Width="2" />
-    <TypeIdentifier>
-      <HashCode>AACAIAAQAAAAAAAEAQAAAMIAAAAAQAACAAAAAAAAAAA=</HashCode>
-      <FileName>ClientCredentials.cs</FileName>
-    </TypeIdentifier>
-  </Class>
-  <Class Name="flare_csharp.ClientManager">
-    <Position X="4.75" Y="0.5" Width="2.5" />
-    <NestedTypes>
-      <Class Name="flare_csharp.ClientManager.GrpcCallFailureException" Collapsed="true">
-        <TypeIdentifier>
-          <NewMemberFileName>ClientManager.cs</NewMemberFileName>
-        </TypeIdentifier>
-      </Class>
-      <Class Name="flare_csharp.ClientManager.FailedToWipeUserDataFromServerException" Collapsed="true">
-        <TypeIdentifier>
-          <NewMemberFileName>ClientManager.cs</NewMemberFileName>
-        </TypeIdentifier>
-      </Class>
-      <Class Name="flare_csharp.ClientManager.LoginFailureException" Collapsed="true">
-        <TypeIdentifier>
-          <NewMemberFileName>ClientManager.cs</NewMemberFileName>
-        </TypeIdentifier>
-      </Class>
-      <Class Name="flare_csharp.ClientManager.RegistrationFailedException" Collapsed="true">
-        <TypeIdentifier>
-          <NewMemberFileName>ClientManager.cs</NewMemberFileName>
-        </TypeIdentifier>
-      </Class>
-      <Class Name="flare_csharp.ClientManager.WrongCredentialsForArgon2Hash" Collapsed="true">
-        <TypeIdentifier>
-          <NewMemberFileName>ClientManager.cs</NewMemberFileName>
-        </TypeIdentifier>
-      </Class>
-    </NestedTypes>
-    <TypeIdentifier>
-      <HashCode>ASAACAAAAAEEIAAQIUAAEAAQgAiEBAADQgCAEAAAAEA=</HashCode>
-      <FileName>ClientManager.cs</FileName>
-    </TypeIdentifier>
-  </Class>
   <Class Name="flare_csharp.MessageReceivingService">
-    <Position X="7.5" Y="0.5" Width="2" />
+    <Position X="1.5" Y="2.75" Width="3.25" />
+    <Compartments>
+      <Compartment Name="Nested Types" Collapsed="false" />
+    </Compartments>
     <NestedTypes>
-      <Class Name="flare_csharp.MessageReceivingService.Message" Collapsed="true">
+      <Class Name="flare_csharp.MessageReceivingService.Message">
         <TypeIdentifier>
           <NewMemberFileName>MessageReceivingService.cs</NewMemberFileName>
         </TypeIdentifier>
@@ -55,5 +17,126 @@
       <FileName>MessageReceivingService.cs</FileName>
     </TypeIdentifier>
   </Class>
+  <Class Name="flare_csharp.MessagingSendingService">
+    <Position X="8.25" Y="3" Width="3" />
+    <Compartments>
+      <Compartment Name="Nested Types" Collapsed="false" />
+    </Compartments>
+    <NestedTypes>
+      <Class Name="flare_csharp.MessagingSendingService.Message">
+        <TypeIdentifier>
+          <NewMemberFileName>MessageSendingService.cs</NewMemberFileName>
+        </TypeIdentifier>
+      </Class>
+    </NestedTypes>
+    <TypeIdentifier>
+      <HashCode>AAAAAAAQAAAAAAACACIAAABAAAAAIBABAAAgAAAAACA=</HashCode>
+      <FileName>MessageSendingService.cs</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Class Name="flare_csharp.AuthorizationService">
+    <Position X="14.5" Y="2.75" Width="2.75" />
+    <Compartments>
+      <Compartment Name="Nested Types" Collapsed="false" />
+    </Compartments>
+    <NestedTypes>
+      <Delegate Name="flare_csharp.AuthorizationService.RegistrationToServerDelegate" Collapsed="true">
+        <TypeIdentifier>
+          <NewMemberFileName>AuthorizationService.cs</NewMemberFileName>
+        </TypeIdentifier>
+      </Delegate>
+      <Class Name="flare_csharp.AuthorizationService.RegistrationToServerEventArgs">
+        <NestedTypes>
+          <Class Name="flare_csharp.AuthorizationService.RegistrationToServerEventArgs.RegistrationResponse" Collapsed="true">
+            <TypeIdentifier>
+              <NewMemberFileName>AuthorizationService.cs</NewMemberFileName>
+            </TypeIdentifier>
+          </Class>
+        </NestedTypes>
+        <TypeIdentifier>
+          <NewMemberFileName>AuthorizationService.cs</NewMemberFileName>
+        </TypeIdentifier>
+      </Class>
+      <Delegate Name="flare_csharp.AuthorizationService.CredentialRequirementsReceivedDelegate" Collapsed="true">
+        <TypeIdentifier>
+          <NewMemberFileName>AuthorizationService.cs</NewMemberFileName>
+        </TypeIdentifier>
+      </Delegate>
+      <Class Name="flare_csharp.AuthorizationService.ReceivedRequirementsEventArgs">
+        <TypeIdentifier>
+          <NewMemberFileName>AuthorizationService.cs</NewMemberFileName>
+        </TypeIdentifier>
+      </Class>
+      <Enum Name="flare_csharp.AuthorizationService.PasswordState">
+        <TypeIdentifier>
+          <NewMemberFileName>AuthorizationService.cs</NewMemberFileName>
+        </TypeIdentifier>
+      </Enum>
+      <Enum Name="flare_csharp.AuthorizationService.UsernameState" Collapsed="true">
+        <TypeIdentifier>
+          <NewMemberFileName>AuthorizationService.cs</NewMemberFileName>
+        </TypeIdentifier>
+      </Enum>
+      <Class Name="flare_csharp.AuthorizationService.CredentialRequirements">
+        <NestedTypes>
+          <Enum Name="flare_csharp.AuthorizationService.CredentialRequirements.Encoding" Collapsed="true">
+            <TypeIdentifier>
+              <NewMemberFileName>AuthorizationService.cs</NewMemberFileName>
+            </TypeIdentifier>
+          </Enum>
+          <Enum Name="flare_csharp.AuthorizationService.CredentialRequirements.StringFormatType" Collapsed="true">
+            <TypeIdentifier>
+              <NewMemberFileName>AuthorizationService.cs</NewMemberFileName>
+            </TypeIdentifier>
+          </Enum>
+          <Struct Name="flare_csharp.AuthorizationService.CredentialRequirements.UsernameRequirements" Collapsed="true">
+            <TypeIdentifier>
+              <NewMemberFileName>AuthorizationService.cs</NewMemberFileName>
+            </TypeIdentifier>
+          </Struct>
+          <Struct Name="flare_csharp.AuthorizationService.CredentialRequirements.PasswordRequirements" Collapsed="true">
+            <TypeIdentifier>
+              <NewMemberFileName>AuthorizationService.cs</NewMemberFileName>
+            </TypeIdentifier>
+          </Struct>
+        </NestedTypes>
+        <TypeIdentifier>
+          <NewMemberFileName>AuthorizationService.cs</NewMemberFileName>
+        </TypeIdentifier>
+      </Class>
+    </NestedTypes>
+    <TypeIdentifier>
+      <HashCode>AAAAhEAECAACAgAAAQAAAQhAAAgAIhADBwEgEAAAACA=</HashCode>
+      <FileName>AuthorizationService.cs</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Class Name="flare_csharp.Services.Service&lt;TState, TCommand, TChannel&gt;" Collapsed="true">
+    <Position X="9" Y="0.75" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>AAAAAAAgAAAAAAAAAgAAAABAAAAAIBAAAAAgBAAAACA=</HashCode>
+      <FileName>Services.cs</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Enum Name="flare_csharp.MRSState">
+    <Position X="5" Y="3" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>CAAAAAAAAAAAAAACAAAAAAQAAAAAAAAAAACAAAAAAgA=</HashCode>
+      <FileName>MessageReceivingService.cs</FileName>
+    </TypeIdentifier>
+  </Enum>
+  <Enum Name="flare_csharp.MSSState">
+    <Position X="11.5" Y="3" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>CBAAAAAAAAAAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAgg=</HashCode>
+      <FileName>MessageSendingService.cs</FileName>
+    </TypeIdentifier>
+  </Enum>
+  <Enum Name="flare_csharp.ASState">
+    <Position X="17.5" Y="2.75" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>CAAAEAAAAAAAAAACAAAAAAAAAAQAAAAABAAIAAAAAgQ=</HashCode>
+      <FileName>AuthorizationService.cs</FileName>
+    </TypeIdentifier>
+  </Enum>
   <Font Name="Segoe UI" Size="9" />
 </ClassDiagram>
