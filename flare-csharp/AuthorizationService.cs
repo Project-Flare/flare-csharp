@@ -75,6 +75,7 @@ namespace flare_csharp
 						try
 						{
 							await ReceiveCredentialRequirements();
+							On_CredentialRequirementsReceived(new ReceivedRequirementsEventArgs(UserCredentialRequirements));
 							Process.MoveToNextState(ASCommand.Success);
 						}
 						catch
@@ -83,14 +84,6 @@ namespace flare_csharp
 						}
 						break;
 					case ASState.SettingCreds:
-						try
-						{
-							On_CredentialRequirementsReceived(new ReceivedRequirementsEventArgs(UserCredentialRequirements));
-						}
-						catch
-						{
-							Process.MoveToNextState(ASCommand.Abort);
-						}
 						if (Username != string.Empty && Password != string.Empty)
 						{
 							Process.MoveToNextState(ASCommand.Success);
@@ -101,7 +94,7 @@ namespace flare_csharp
 						{
 							RegisterResponse registerResponse = await RegisterToServerAsync();
 							RegistrationToServerEvent += SetAuthToken;
-							OnRegistrationToServer(new RegistrationToServerEventArgs(registerResponse));
+							On_RegistrationToServer(new RegistrationToServerEventArgs(registerResponse));
 							RegistrationToServerEvent -= SetAuthToken;
 							Process.MoveToNextState(ASCommand.Success);
 						}
@@ -327,7 +320,7 @@ namespace flare_csharp
 				}
 			}
 		}
-		public void OnRegistrationToServer(RegistrationToServerEventArgs eventArgs)
+		public void On_RegistrationToServer(RegistrationToServerEventArgs eventArgs)
 		{
 			RegistrationToServerEvent?.Invoke(eventArgs);
 		}

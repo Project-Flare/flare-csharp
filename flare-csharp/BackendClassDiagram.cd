@@ -1,22 +1,5 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <ClassDiagram MajorVersion="1" MinorVersion="1">
-  <Class Name="flare_csharp.MessageReceivingService">
-    <Position X="1.5" Y="2.75" Width="3.25" />
-    <Compartments>
-      <Compartment Name="Nested Types" Collapsed="false" />
-    </Compartments>
-    <NestedTypes>
-      <Class Name="flare_csharp.MessageReceivingService.Message">
-        <TypeIdentifier>
-          <NewMemberFileName>MessageReceivingService.cs</NewMemberFileName>
-        </TypeIdentifier>
-      </Class>
-    </NestedTypes>
-    <TypeIdentifier>
-      <HashCode>AAAAAAAQAAAQAgAQAAAAAABAAAAAJBABAAAgAAAAACA=</HashCode>
-      <FileName>MessageReceivingService.cs</FileName>
-    </TypeIdentifier>
-  </Class>
   <Class Name="flare_csharp.MessagingSendingService">
     <Position X="8.25" Y="3" Width="3" />
     <Compartments>
@@ -32,6 +15,30 @@
     <TypeIdentifier>
       <HashCode>AAAAAAAQAAAAAAACACIAAABAAAAAIBABAAAgAAAAACA=</HashCode>
       <FileName>MessageSendingService.cs</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Class Name="flare_csharp.Services.Service&lt;TState, TCommand, TChannel&gt;" Collapsed="true">
+    <Position X="9" Y="0.75" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>AAAAAAAgAAAAAAAAAgAAAABAAAAAIBAAAAAgBAAAACA=</HashCode>
+      <FileName>Services.cs</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Class Name="flare_csharp.MessageReceivingService">
+    <Position X="1.5" Y="2.75" Width="3.25" />
+    <Compartments>
+      <Compartment Name="Nested Types" Collapsed="false" />
+    </Compartments>
+    <NestedTypes>
+      <Class Name="flare_csharp.MessageReceivingService.Message">
+        <TypeIdentifier>
+          <NewMemberFileName>MessageReceivingService.cs</NewMemberFileName>
+        </TypeIdentifier>
+      </Class>
+    </NestedTypes>
+    <TypeIdentifier>
+      <HashCode>AAAAAAAQAAAQAgAQAAAAAABAAAAAJBABAAAgAAAAACA=</HashCode>
+      <FileName>MessageReceivingService.cs</FileName>
     </TypeIdentifier>
   </Class>
   <Class Name="flare_csharp.AuthorizationService">
@@ -116,15 +123,8 @@
       </Class>
     </NestedTypes>
     <TypeIdentifier>
-      <HashCode>AAAAhEAEiAACAgABAQAAAQhAAAgAIhADBwEgEAAQACA=</HashCode>
+      <HashCode>AEAAhEAACAACAgABAwAAAQhAAAgAIhADBgEgEIAQUCA=</HashCode>
       <FileName>AuthorizationService.cs</FileName>
-    </TypeIdentifier>
-  </Class>
-  <Class Name="flare_csharp.Services.Service&lt;TState, TCommand, TChannel&gt;" Collapsed="true">
-    <Position X="9" Y="0.75" Width="1.5" />
-    <TypeIdentifier>
-      <HashCode>AAAAAAAgAAAAAAAAAgAAAABAAAAAIBAAAAAgBAAAACA=</HashCode>
-      <FileName>Services.cs</FileName>
     </TypeIdentifier>
   </Class>
   <Enum Name="flare_csharp.MRSState">
