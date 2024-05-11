@@ -79,7 +79,7 @@ namespace flare_csharp
 			}
 		}
 
-		protected override async void RunServiceAsync()
+		public override async void RunServiceAsync()
 		{
 			//[DEV_NOTES]: pinging should be simple async task that will be awaited at the end of the loop
 			while (!ServiceEnded())

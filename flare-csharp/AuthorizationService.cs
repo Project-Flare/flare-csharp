@@ -35,24 +35,17 @@ namespace flare_csharp
 		}
 		public override void StartService()
 		{
-			try
-			{
-				Process.ProcessThread = new Thread(RunServiceAsync)
-				{
-					Name = "AUTH_SERVICE_THREAD",
-					IsBackground = true
-				};
-				Process.MoveToNextState(ASCommand.Success);
-				Process.ProcessThread.Start();
-			}
-			catch (Exception ex)
-			{
-				//[TODO]: learn string formatting and use proper logger for gods sake. https://learn.microsoft.com/en-us/dotnet/api/system.string.format?view=net-8.0
-				Console.WriteLine(string.Format($"[ERROR]: Failed to initialize services. Inner exception:\n{ex}"));
-				Process.MoveToNextState(ASCommand.Abort);
-			}
+			if (State != ASState.Initialized)
+				Process.GoTo(ASState.Initialized); // [NOTE]: ain't good practice, but this is a quick fix
+			Process.MoveToNextState(ASCommand.Success);
 		}
-		protected override async void RunServiceAsync()
+		public Thread? GiveServiceThread() => Process.ProcessThread;
+		public void LoadUserCredentials(Credentials credentials)
+		{
+			this.credentials = credentials;
+		}
+		public Credentials GetAcquiredCredentials() => this.credentials;
+		public override async void RunServiceAsync()
 		{
 			while (!ServiceEnded())
 			{
@@ -87,7 +80,7 @@ namespace flare_csharp
 					case ASState.SettingCreds:
 						try
 						{
-							OnCredentialRequirementsReceived(new ReceivedRequirementsEventArgs(UserCredentialRequirements));
+							On_CredentialRequirementsReceived(new ReceivedRequirementsEventArgs(UserCredentialRequirements));
 						}
 						catch
 						{
@@ -126,6 +119,10 @@ namespace flare_csharp
 						{
 							Process.MoveToNextState(ASCommand.Abort);
 						}
+						catch (AbandonedMutexException)
+						{
+							Process.MoveToNextState(ASCommand.Abort);
+						}
 						catch (Exception)
 						{
 							Process.MoveToNextState(ASCommand.Reconnect);
@@ -153,7 +150,7 @@ namespace flare_csharp
 		public class LoggedInEventArgs : EventArgs
 		{
 			public bool LoggedInSuccessfully { get; private set; }
-			public enum FailureReason { None, UntrustworthyServer,  PasswordInvalid, UsernameInvalid, ServerError, UsernameNotExist, MissingParameters, Unknown }
+			public enum FailureReason { None, UntrustworthyServer,  PasswordInvalid, UsernameInvalid, ServerError, UsernameNotExist, UserDoesNotExits, Unknown }
 			public FailureReason LoginFailureReason { get; private set; }
 			public LoggedInEventArgs(bool success, FailureReason? failureReason)
 			{
@@ -161,7 +158,7 @@ namespace flare_csharp
 				LoginFailureReason = (FailureReason)((failureReason is null) ? FailureReason.None : failureReason!);
 			}
 		}
-		private void OnLoggedInToServer(LoggedInEventArgs loggedInEventArgs)
+		private void On_LoggedInToServer(LoggedInEventArgs loggedInEventArgs)
 		{
 			LoggedInToServerEvent?.Invoke(loggedInEventArgs);
 		}
@@ -182,19 +179,19 @@ namespace flare_csharp
 						failureReason = LoggedInEventArgs.FailureReason.UsernameNotExist;
 						break;
 					case GetClientHashParamsResponse.Types.GetClientHashParamsError.Missing:
-						failureReason = LoggedInEventArgs.FailureReason.MissingParameters;
+						failureReason = LoggedInEventArgs.FailureReason.UserDoesNotExits;
 						break;
 					default:
 						failureReason = LoggedInEventArgs.FailureReason.Unknown;
 						break;
 				}
-				OnLoggedInToServer(new LoggedInEventArgs(success: false, failureReason));
+				On_LoggedInToServer(new LoggedInEventArgs(success: false, failureReason));
 				throw new AuthenticationException($"Failed to login to server with {credentials.Username} because {getClientHashParamsResponse.GetClientHashParamsResultCase}");
 			}
 			HashParams hashParams = getClientHashParamsResponse.Params;
 			if (hashParams.MemoryCost < Credentials.MIN_MEMORY_COST_BYTES || hashParams.TimeCost < Credentials.MIN_TIME_COST || CredentialRequirements.GetBitEntropy(hashParams.Salt) < Credentials.MIN_SALT_ENTROPY) // the server is untrustworthy!
 			{
-				OnLoggedInToServer(new LoggedInEventArgs(success: false, LoggedInEventArgs.FailureReason.UntrustworthyServer));
+				On_LoggedInToServer(new LoggedInEventArgs(success: false, LoggedInEventArgs.FailureReason.UntrustworthyServer));
 				throw new SecurityException($"Server sent less than minimum requirements to {hashParams.GetType().Name}");
 			}
 			credentials.MemoryCostBytes = (int)hashParams.MemoryCost;
@@ -224,11 +221,11 @@ namespace flare_csharp
 						failureReason = LoggedInEventArgs.FailureReason.Unknown;
 						break;
 				}
-				OnLoggedInToServer(new LoggedInEventArgs(success: false, failureReason));
+				On_LoggedInToServer(new LoggedInEventArgs(success: false, failureReason));
 				throw new AbandonedMutexException($"Failed to login to server with {credentials.Username} because {loginResponse.Failure}");
 			}
 			credentials.AuthToken = loginResponse.Token;
-			OnLoggedInToServer(new LoggedInEventArgs(success: true, failureReason: null));
+			On_LoggedInToServer(new LoggedInEventArgs(success: true, failureReason: null));
 		}
 		protected override void DefineWorkflow()
 		{
@@ -347,7 +344,7 @@ namespace flare_csharp
 			}
 		}
 		public event CredentialRequirementsReceivedDelegate? ReceivedCredentialRequirements;
-		public void OnCredentialRequirementsReceived(ReceivedRequirementsEventArgs eventArgs)
+		public void On_CredentialRequirementsReceived(ReceivedRequirementsEventArgs eventArgs)
 		{
 			ReceivedCredentialRequirements?.Invoke(eventArgs);
 		}

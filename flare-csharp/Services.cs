@@ -20,7 +20,7 @@ namespace flare_csharp
 				Channel = channel;
 				DefineWorkflow();
 			}
-			protected abstract void RunServiceAsync();
+			public abstract void RunServiceAsync();
 			protected abstract void DefineWorkflow();
 			protected abstract bool ServiceEnded();
 			public abstract void StartService();

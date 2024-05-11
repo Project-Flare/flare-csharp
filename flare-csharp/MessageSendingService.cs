@@ -23,7 +23,7 @@ namespace flare_csharp
 			sendMessagesQueue = new ConcurrentQueue<Message>();
 			sentMessagesQueue = new ConcurrentQueue<Message>();
 		}
-		protected override async void RunServiceAsync()
+		public override async void RunServiceAsync()
 		{
 			Messaging.MessagingClient messagingClient = new Messaging.MessagingClient(Channel);
 			while (!ServiceEnded())
