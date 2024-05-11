@@ -12,7 +12,7 @@ using System.Threading;
 namespace flare_csharp
 {
 	public enum ASState { Initialized, Connecting, ReceivingCredentialRequirements, SettingCreds, Registering, LoggingIn, Reconnecting, Aborted, EndedSuccessfully }
-	public enum ASCommand { Success, Fail, Abort, UserHasAccount, Reconnect }
+	public enum ASCommand { Success, Fail, Abort, UserHasAccount, Reconnect, Retry }
 	public class AuthorizationService : Service<ASState, ASCommand, GrpcChannel>
 	{
 		private AuthClient authClient;
@@ -35,9 +35,14 @@ namespace flare_csharp
 		}
 		public override void StartService()
 		{
-			if (State != ASState.Initialized)
-				Process.GoTo(ASState.Initialized); // [NOTE]: ain't good practice, but this is a quick fix
-			Process.MoveToNextState(ASCommand.Success);
+			if (State == ASState.Aborted)
+			{
+				Process.MoveToNextState(ASCommand.Retry);
+			}
+			if (State == ASState.Initialized)
+			{
+				Process.MoveToNextState(ASCommand.Success);
+			}
 		}
 		public Thread? GiveServiceThread() => Process.ProcessThread;
 		public void LoadUserCredentials(Credentials credentials)
@@ -247,6 +252,7 @@ namespace flare_csharp
 			Process.AddStateTransition(transition: new Process<ASState, ASCommand>.StateTransition(currentState: ASState.LoggingIn, command: ASCommand.Success), processState: ASState.EndedSuccessfully);
 			Process.AddStateTransition(transition: new Process<ASState, ASCommand>.StateTransition(currentState: ASState.Reconnecting, command: ASCommand.Success), processState: ASState.Connecting);
 			Process.AddStateTransition(transition: new Process<ASState, ASCommand>.StateTransition(currentState: ASState.Reconnecting, command: ASCommand.Abort), processState: ASState.Aborted);
+			Process.AddStateTransition(transition: new Process<ASState, ASCommand>.StateTransition(currentState: ASState.Aborted, command: ASCommand.Retry), processState: ASState.Initialized);
 		}
 		/// <summary>
 		/// Sets <see cref="credentials"/> <see cref="Credentials.AuthToken"/> property if the registration was successful.
