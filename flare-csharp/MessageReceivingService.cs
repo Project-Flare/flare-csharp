@@ -9,22 +9,24 @@ using System.Text;
 namespace flare_csharp
 {
 	public enum MRSState { Initialized, Connecting, Listening, Receiving, Aborted, Reconnecting };
-	public enum MRSCommand { Connected, Reconnect, Receive, Abort, End }
+	public enum MRSCommand { Run, Connected, Reconnect, Receive, Abort, End, Fail }
 	public class MessageReceivingService : Service<MRSState, MRSCommand, ClientWebSocket>
 	{
-		public string AuthToken { get; set; }
+		public Credentials Credentials { get; set; }
 		public string ServerUrl { get; private set; }
 		private ConcurrentQueue<Message> receivedMessageQueue;
-		public MessageReceivingService(Process<MRSState, MRSCommand> process, string serverUrl, string authToken) : base(process, new ClientWebSocket())
+		public MessageReceivingService(Process<MRSState, MRSCommand> process, string serverUrl, Credentials credentials) : base(process, new ClientWebSocket())
 		{
-			AuthToken = authToken;
+			Credentials = credentials;
 			ServerUrl = serverUrl;
 			receivedMessageQueue = new ConcurrentQueue<Message>();
 		}
 
 		protected override void DefineWorkflow()
 		{
+			Process.AddStateTransition(transition: new Process<MRSState, MRSCommand>.StateTransition(currentState: MRSState.Initialized, command: MRSCommand.Run), processState: MRSState.Connecting);
 			Process.AddStateTransition(transition: new Process<MRSState, MRSCommand>.StateTransition(currentState: MRSState.Connecting, command: MRSCommand.Connected), processState: MRSState.Listening);
+			Process.AddStateTransition(transition: new Process<MRSState, MRSCommand>.StateTransition(currentState: MRSState.Connecting, command: MRSCommand.Fail), processState: MRSState.Reconnecting);
 			Process.AddStateTransition(transition: new Process<MRSState, MRSCommand>.StateTransition(currentState: MRSState.Listening, command: MRSCommand.Receive), processState: MRSState.Receiving);
 			Process.AddStateTransition(transition: new Process<MRSState, MRSCommand>.StateTransition(currentState: MRSState.Receiving, command: MRSCommand.Reconnect), processState: MRSState.Reconnecting);
 			Process.AddStateTransition(transition: new Process<MRSState, MRSCommand>.StateTransition(currentState: MRSState.Receiving, command: MRSCommand.End), processState: MRSState.Listening);
@@ -36,25 +38,10 @@ namespace flare_csharp
 			throw new NotImplementedException();
 		}
 
-		public override async void StartService()
+		public override void StartService()
 		{
-			try
-			{
-				CancellationTokenSource cancellationTokenSource = new CancellationTokenSource(TimeSpan.FromSeconds(10));
-				await Channel.ConnectAsync(uri: new Uri(ServerUrl), cancellationToken: cancellationTokenSource.Token);
-				await SendSubscribeRequestAsync();
-				Process.MoveToNextState(MRSCommand.Connected);
-				Process.ProcessThread = new Thread(RunServiceAsync)
-				{
-					Name = "MESSAGE_RECEIVING_SERVICE_THREAD",
-					IsBackground = true
-				};
-				Process.ProcessThread.Start();
-			}
-			catch // [NOTE]: maybe something better?
-			{
-				throw new Exception("Failed to start message receiving service");
-			}
+			if (State == MRSState.Initialized)
+				Process.MoveToNextState(MRSCommand.Run);
 		}
 
 		private async Task SendSubscribeRequestAsync()
@@ -64,7 +51,7 @@ namespace flare_csharp
 				CancellationTokenSource cancellationTokenSource = new CancellationTokenSource(TimeSpan.FromSeconds(3));
 				SubscribeRequest subscribeRequest = new SubscribeRequest
 				{
-					Token = AuthToken,
+					Token = Credentials.AuthToken,
 					BeginTimestamp = string.Empty // [TODO]: do when you implement time stamping
 				};
 				await Channel.SendAsync(
@@ -87,10 +74,27 @@ namespace flare_csharp
 				var pingChannelTask = PingChannel();
 				switch (State)
 				{
+					case MRSState.Initialized:
+						// Wait for the service to be started
+						break;
 					case MRSState.Connecting:
-						if (Channel.State == WebSocketState.Open)
+						try
 						{
-							Process.MoveToNextState(MRSCommand.Connected);
+							if (Channel.State == WebSocketState.Open)
+							{
+								Process.MoveToNextState(MRSCommand.Connected);
+							}
+							else
+							{
+								CancellationTokenSource cancellationTokenSource = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+								await Channel.ConnectAsync(uri: new Uri(ServerUrl), cancellationToken: cancellationTokenSource.Token);
+								await SendSubscribeRequestAsync();
+								Process.MoveToNextState(MRSCommand.Connected);
+							}
+						}
+						catch
+						{
+							Process.MoveToNextState(MRSCommand.Fail);
 						}
 						break;
 					case MRSState.Listening:
@@ -136,7 +140,7 @@ namespace flare_csharp
 								reconnectionAttempts++;
 							}
 						}
-						Process.MoveToNextState(MRSCommand.Abort); // [NOTE]: I guess when the service is aborted, I should stop and destroy the process thread.
+						Process.MoveToNextState(MRSCommand.Abort);
 						break;
 					default:
 						break;

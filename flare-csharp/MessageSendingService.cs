@@ -8,17 +8,17 @@ using System.Diagnostics;
 
 namespace flare_csharp
 {
-	public enum MSSState { Initialized, Connected, SendingMessage, Reconnecting, Aborted, Exited };
-	public enum MSSCommand { SendEnqueuedMessage, MessageSent, Reconnect, Reconnected, Abort }
+	public enum MSSState { Initialized, Connecting, Connected, SendingMessage, Reconnecting, Aborted, Exited };
+	public enum MSSCommand { StartService, Success, Failure, SendEnqueuedMessage, MessageSent, Reconnect, Reconnected, Abort }
 	public sealed class MessageSendingService : Service<MSSState, MSSCommand, GrpcChannel>
 	{
-		public string AuthToken { get; set; }
+		public Credentials Credentials { get; set; }
 		public string ServerUrl { get; set; }
 		private ConcurrentQueue<Message> sendMessagesQueue;
 		private ConcurrentQueue<Message> sentMessagesQueue;
-		public MessageSendingService(Process<MSSState, MSSCommand> process, string serverUrl, string authToken, GrpcChannel channel) : base(process, channel)
+		public MessageSendingService(Process<MSSState, MSSCommand> process, string serverUrl, Credentials credentials, GrpcChannel channel) : base(process, channel)
 		{
-			AuthToken = authToken;
+			Credentials = credentials;
 			ServerUrl = serverUrl;
 			sendMessagesQueue = new ConcurrentQueue<Message>();
 			sentMessagesQueue = new ConcurrentQueue<Message>();
@@ -30,6 +30,21 @@ namespace flare_csharp
 			{
 				switch (State)
 				{
+					case MSSState.Initialized:
+						// Do nothing, can be moved to next state only when the service is manually started
+						break;
+					case MSSState.Connecting:
+						try
+						{
+							CancellationTokenSource cancellationTokenSource = new CancellationTokenSource(TimeSpan.FromSeconds(3));
+							await Channel.ConnectAsync(cancellationTokenSource.Token);
+							Process.MoveToNextState(MSSCommand.Success);
+						}
+						catch
+						{
+							Process.MoveToNextState(MSSCommand.Failure);
+						}
+						break;
 					case MSSState.Connected:
 						if (!sendMessagesQueue.IsEmpty)
 						{
@@ -51,7 +66,7 @@ namespace flare_csharp
 								EncryptedMessage = message.EncryptMessage(),
 								RecipientUsername = message.RecipientUsername
 							};
-							Metadata headers = new Metadata { { "flare-auth", AuthToken } };
+							Metadata headers = new Metadata { { "flare-auth", Credentials.AuthToken } };
 							DateTime deadline = DateTime.UtcNow.AddSeconds(5); // [NOTE]: this shouldn't be hardcoded
 							MessageResponse response = await messagingClient.MessageAsync(messageRequest, headers, deadline);
 							message.IsSentSuccessfully = (response.HasSuccess) ? true : false; // [TODO]: this should be handled properly
@@ -105,6 +120,9 @@ namespace flare_csharp
 		}
 		protected override void DefineWorkflow()
 		{
+			Process.AddStateTransition(transition: new Process<MSSState, MSSCommand>.StateTransition(MSSState.Initialized, MSSCommand.StartService), processState: MSSState.Connecting);
+			Process.AddStateTransition(transition: new Process<MSSState, MSSCommand>.StateTransition(MSSState.Connecting, MSSCommand.Success), processState: MSSState.Connected);
+			Process.AddStateTransition(transition: new Process<MSSState, MSSCommand>.StateTransition(MSSState.Connecting, MSSCommand.Failure), processState: MSSState.Reconnecting);
 			Process.AddStateTransition(transition: new Process<MSSState, MSSCommand>.StateTransition(MSSState.Connected, MSSCommand.SendEnqueuedMessage), processState: MSSState.SendingMessage);
 			Process.AddStateTransition(transition: new Process<MSSState, MSSCommand>.StateTransition(MSSState.SendingMessage, MSSCommand.MessageSent), processState: MSSState.Connected);
 			Process.AddStateTransition(transition: new Process<MSSState, MSSCommand>.StateTransition(MSSState.SendingMessage, MSSCommand.Reconnect), processState: MSSState.Reconnecting);
@@ -115,18 +133,15 @@ namespace flare_csharp
 		protected override bool ServiceEnded()
 		{
 			return Channel.State == ConnectivityState.TransientFailure
-				|| Channel.State == ConnectivityState.Shutdown
 				|| Channel.State == ConnectivityState.Shutdown;
 		}
 
 		public override void StartService()
 		{
-			Process.ProcessThread = new Thread(RunServiceAsync)
-			{
-				Name = "MESSAGE_SENDING_SERVICE_THREAD",
-				IsBackground = true
-			};
-			Process.ProcessThread.Start();
+			if (State == MSSState.Initialized)
+				Process.MoveToNextState(MSSCommand.StartService);
+			if (State == MSSState.Aborted) // [TODO]: throw better Exception
+				throw new Exception("The service is aborted");
 		}
 
 		public override void EndService()
