@@ -8,7 +8,7 @@ using System.Text;
 
 namespace flare_csharp
 {
-	public enum MRSState { Connecting, Listening, Receiving, Aborted, Reconnecting };
+	public enum MRSState { Initialized, Connecting, Listening, Receiving, Aborted, Reconnecting };
 	public enum MRSCommand { Connected, Reconnect, Receive, Abort, End }
 	public class MessageReceivingService : Service<MRSState, MRSCommand, ClientWebSocket>
 	{

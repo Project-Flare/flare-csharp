@@ -8,15 +8,15 @@ using System.Diagnostics;
 
 namespace flare_csharp
 {
-	public enum MSSState { Connected, SendingMessage, Reconnecting, Aborted, Exited };
+	public enum MSSState { Initialized, Connected, SendingMessage, Reconnecting, Aborted, Exited };
 	public enum MSSCommand { SendEnqueuedMessage, MessageSent, Reconnect, Reconnected, Abort }
-	public sealed class MessagingSendingService : Service<MSSState, MSSCommand, GrpcChannel>
+	public sealed class MessageSendingService : Service<MSSState, MSSCommand, GrpcChannel>
 	{
 		public string AuthToken { get; set; }
 		public string ServerUrl { get; set; }
 		private ConcurrentQueue<Message> sendMessagesQueue;
 		private ConcurrentQueue<Message> sentMessagesQueue;
-		public MessagingSendingService(Process<MSSState, MSSCommand> process, string serverUrl, string authToken, GrpcChannel channel) : base(process, channel)
+		public MessageSendingService(Process<MSSState, MSSCommand> process, string serverUrl, string authToken, GrpcChannel channel) : base(process, channel)
 		{
 			AuthToken = authToken;
 			ServerUrl = serverUrl;
