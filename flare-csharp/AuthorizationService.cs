@@ -121,7 +121,7 @@ namespace flare_csharp
 						{
 							Process.MoveToNextState(ASCommand.Abort);
 						}
-						catch (Exception ex)
+						catch (Exception)
 						{
 							Process.MoveToNextState(ASCommand.Reconnect);
 						}
@@ -133,7 +133,7 @@ namespace flare_csharp
 							await Channel.ConnectAsync(cancellationTokenSource.Token);
 							Process.MoveToNextState(ASCommand.Success);
 						}
-						catch (Exception ex)
+						catch (Exception)
 						{
 							Process.MoveToNextState(ASCommand.Abort);
 						}
