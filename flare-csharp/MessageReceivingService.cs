@@ -205,6 +205,16 @@ namespace flare_csharp
 			}
 		}
 
+		public List<Message> FetchReceivedMessages()
+		{
+			var messageList = new List<Message>();
+			foreach(var message in receivedMessageQueue)
+			{
+				messageList.Add(message);
+			}
+			return messageList;
+		}
+
 		public sealed class Message
 		{
 			public InboundUserMessage InboundUserMessage { get; set; }
