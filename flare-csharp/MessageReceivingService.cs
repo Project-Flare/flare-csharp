@@ -30,7 +30,7 @@ namespace flare_csharp
 			Process.AddStateTransition(transition: new Process<MRSState, MRSCommand>.StateTransition(currentState: MRSState.Listening, command: MRSCommand.Receive), processState: MRSState.Receiving);
 			Process.AddStateTransition(transition: new Process<MRSState, MRSCommand>.StateTransition(currentState: MRSState.Receiving, command: MRSCommand.Reconnect), processState: MRSState.Reconnecting);
 			Process.AddStateTransition(transition: new Process<MRSState, MRSCommand>.StateTransition(currentState: MRSState.Receiving, command: MRSCommand.End), processState: MRSState.Listening);
-			Process.AddStateTransition(transition: new Process<MRSState, MRSCommand>.StateTransition(currentState: MRSState.Reconnecting, command: MRSCommand.End), processState: MRSState.Connecting);
+			Process.AddStateTransition(transition: new Process<MRSState, MRSCommand>.StateTransition(currentState: MRSState.Reconnecting, command: MRSCommand.End), processState: MRSState.Listening);
 			Process.AddStateTransition(transition: new Process<MRSState, MRSCommand>.StateTransition(currentState: MRSState.Reconnecting, command: MRSCommand.Abort), processState: MRSState.Aborted);
 		}
 		public override void EndService()
@@ -128,19 +128,23 @@ namespace flare_csharp
 							{
 								Channel.Dispose();
 								Channel = new ClientWebSocket();
-								CancellationTokenSource cancellationTokenSource = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+								CancellationTokenSource cancellationTokenSource = new CancellationTokenSource(TimeSpan.FromSeconds(2));
 								await Channel.ConnectAsync(new Uri(ServerUrl), cancellationTokenSource.Token);
 								if (Channel.State == WebSocketState.Connecting || Channel.State == WebSocketState.Open)
 								{
+									await SendSubscribeRequestAsync();
 									Process.MoveToNextState(MRSCommand.End);
+									// [TODO]: this should't be so oogaa booga
+									reconnectionAttempts = int.MaxValue;
 								}
 							}
 							catch
 							{
+								Thread.Sleep(TimeSpan.FromSeconds(2));
 								reconnectionAttempts++;
 							}
+							// [TODO]: handle abort situation
 						}
-						Process.MoveToNextState(MRSCommand.Abort);
 						break;
 					default:
 						break;
@@ -151,10 +155,7 @@ namespace flare_csharp
 
 		protected override bool ServiceEnded()
 		{
-			return Channel.State == WebSocketState.CloseSent
-				|| Channel.State == WebSocketState.CloseReceived
-				|| Channel.State == WebSocketState.Closed
-				|| Channel.State == WebSocketState.Aborted;
+			return State == MRSState.Aborted;
 		}
 
 		private async Task<(byte[] data, int offset, int length)> ReceiveMessageAsync(int timeoutSeconds)
