@@ -1,4 +1,6 @@
-﻿namespace flare_csharp
+﻿using Org.BouncyCastle.Crypto;
+
+namespace flare_csharp
 {
     public class Credentials
     {
@@ -6,27 +8,41 @@
         /// 64 MB
         /// </summary>
         public const int MIN_MEMORY_COST_BYTES = 65_536;
+
         /// <summary>
         /// 128 MB
         /// </summary>
-        public const int MEMORY_COST_BYTES = 131_072;
-        public const int MIN_TIME_COST = 3;
-        public const int TIME_COST = 3;
+        public const int DEFAULT_MEMORY_COST_BYTES = 131_072;
+
+		/// <summary>
+		/// Amount of computation realized and impacts the execution time (3)
+		/// </summary>
+		public const int MIN_TIME_COST = 3;
+
+		/// <summary>
+		/// Amount of computation realized and impacts the execution time (3)
+		/// </summary>
+		public const int DEFAULT_TIME_COST = 3;
+
+        /// <summary>
+        /// 31-bit entropy
+        /// </summary>
         public const int MIN_SALT_ENTROPY = 31;
+
 		/// <summary>
 		/// Client's username.
 		/// </summary>
-		public string Username { get; set; } = string.Empty;
+		public string Username { get; set; }
 
         /// <summary>
         /// Client's password, most likely will be 8-digit PIN.
         /// </summary>
-        public string Password { get; set; } = string.Empty;
+        public string Password { get; set; }
 
         /// <summary>
         /// Full generated argon2 hash in <see cref="Crypto.HashPasswordArgon2i(ref Credentials)"/> method.
         /// </summary>
-        public string Argon2Hash { get; set; } = string.Empty;
+        public string Argon2Hash { get; set; }
 
         /// <summary>
         /// Pseudo random constant used to create a salt for argon2 hash.
@@ -36,17 +52,17 @@
         /// <summary>
         /// Random constant that is provided by the device, used to create a salt for more secure argon2 hash.
         /// </summary>
-        public string SecureRandom { get; set; } = string.Empty;
+        public string SecureRandom { get; set; }
 
         /// <summary>
         /// How much bytes are used to hash <see cref="Password"/> in argon2 hash function.
         /// </summary>
-        public int MemoryCostBytes { get; set; } = -1;
+        public int MemoryCostBytes { get; set; }
 
         /// <summary>
         /// Also the argon2 hash parameter, must be saved.
         /// </summary>
-        public int TimeCost { get; set; } = -1;
+        public int TimeCost { get; set; }
 
         /// <summary>
         /// Only hash of the <see cref="Password"/>
@@ -55,19 +71,33 @@
         {
             get => Argon2Hash.Split('$').Last();
         }
-        public string Salt { get; set; } = string.Empty;
+        public string Salt { get; set; }
+
         /// <summary>
-        /// Received authentication token from the server when logging in or registering. Thread safe (source - kinda trust me bro)
+        /// Received authentication token from the server when logging in or registering.
         /// </summary>
-        public string AuthToken { get; set; } = string.Empty;
+        public string AuthToken { get; set; }
 
-        public Credentials() { }
+        /// <summary>
+        /// EC Diffie-Hellman Key Pair
+        /// </summary>
+        public AsymmetricCipherKeyPair? AsymmetricCipherKeyPair { get; set; }
 
-        public Credentials(int memoryCostBytes, int timeCost) 
+        /// <summary>
+        /// Initializing with default values.
+        /// </summary>
+        public Credentials() 
         {
-            MemoryCostBytes = memoryCostBytes;
-            TimeCost = timeCost;
+            Argon2Hash = string.Empty;
+            AuthToken = string.Empty;
+            MemoryCostBytes = DEFAULT_MEMORY_COST_BYTES;
+            Password = string.Empty;
+            Salt = string.Empty;
+            SecureRandom = string.Empty;
+            TimeCost = DEFAULT_TIME_COST;
+            Username = string.Empty;
         }
+
 
 
         public override string ToString()

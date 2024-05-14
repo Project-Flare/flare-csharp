@@ -12,6 +12,7 @@ using Org.BouncyCastle.Crypto;
 using System.Numerics;
 using Org.BouncyCastle.Crypto.Agreement;
 using Org.BouncyCastle.Math;
+using Org.BouncyCastle.X509;
 
 namespace flare_csharp
 {
