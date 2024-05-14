@@ -10,6 +10,7 @@ using Org.BouncyCastle.Crypto.Generators;
 using Org.BouncyCastle.Security;
 using Org.BouncyCastle.Asn1.X9;
 using Org.BouncyCastle.Crypto.Agreement;
+using Org.BouncyCastle.Crypto.Digests;
 
 namespace flare_csharp
 {
@@ -66,6 +67,24 @@ namespace flare_csharp
                 cred.Argon2Hash = argonConfig.EncodeString(hash.Buffer);
             }
         }
+
+        /// <summary>
+        /// Generate a 32-byte from non-uniform randomness, intended for use with EC Diffie-Hellman blobs
+        /// </summary>
+        /// <param name="input_secret"></param>
+        /// <returns></returns>
+        public static byte[] FlareSharedSecretDerive(byte[] input_secret)
+        {
+            byte[] output = new byte[32];
+            var digest = new Blake3Digest();
+            digest.Init(new Blake3Parameters());
+
+            digest.BlockUpdate(input_secret);
+            digest.DoFinal(output);
+
+            return output;
+        }
+
 
         /// <summary>
         /// Encrypts a byte array plaintext to the Flare protocol's transmission format
