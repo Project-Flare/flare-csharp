@@ -135,10 +135,7 @@ namespace flare_csharp
 							await Channel.ConnectAsync(cancellationTokenSource.Token);
 							Process.MoveToNextState(ASCommand.Success);
 						}
-						catch (Exception)
-						{
-							Process.MoveToNextState(ASCommand.Abort);
-						}
+						catch { }
 						break;
 					default:
 						break;

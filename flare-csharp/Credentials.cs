@@ -1,4 +1,5 @@
 ﻿using Isopoh.Cryptography.Argon2;
+using Org.BouncyCastle.Asn1.X509;
 using Org.BouncyCastle.Crypto;
 using Org.BouncyCastle.X509;
 
@@ -94,11 +95,20 @@ namespace flare_csharp
             {
                 if (AsymmetricCipherKeyPair is not null)
                     return 
-                        SubjectPublicKeyInfoFactory.CreateSubjectPublicKeyInfo(AsymmetricCipherKeyPair!.Public)
-                            .GetDerEncoded().ToB64String();
+                        SubjectPublicKeyInfoFactory.CreateSubjectPublicKeyInfo(AsymmetricCipherKeyPair!.Public).GetDerEncoded().ToB64String();
                 return null;
             }
         }
+
+        public string? IdentityPrivateKey
+        {
+            get
+            {
+                if (AsymmetricCipherKeyPair is not null)
+                    return SubjectPublicKeyInfoFactory.CreateSubjectPublicKeyInfo(AsymmetricCipherKeyPair.Private).GetDerEncoded().ToB64String();
+                return null;
+            }
+        } 
 
         /// <summary>
         /// Initializing with default values.
