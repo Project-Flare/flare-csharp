@@ -2,17 +2,12 @@
 using Isopoh.Cryptography.SecureArray;
 using System.Security.Cryptography;
 using System.Text;
-using Org.BouncyCastle;
 using Org.BouncyCastle.Crypto.Generators;
 using Org.BouncyCastle.Crypto.Parameters;
 using Org.BouncyCastle.Security;
-using Org.BouncyCastle.Asn1.Pkcs;
 using Org.BouncyCastle.Asn1.X9;
 using Org.BouncyCastle.Crypto;
-using System.Numerics;
 using Org.BouncyCastle.Crypto.Agreement;
-using Org.BouncyCastle.Math;
-using Org.BouncyCastle.X509;
 
 namespace flare_csharp
 {

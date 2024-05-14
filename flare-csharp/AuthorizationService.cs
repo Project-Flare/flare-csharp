@@ -30,7 +30,6 @@ namespace flare_csharp
 		}
 		public override void EndService()
 		{
-			
 			throw new NotImplementedException();
 		}
 		public override void StartService()
@@ -48,6 +47,10 @@ namespace flare_csharp
 		public void LoadUserCredentials(Credentials credentials)
 		{
 			this.credentials = credentials;
+			if (this.credentials.AsymmetricCipherKeyPair is null)
+			{
+				this.credentials.AsymmetricCipherKeyPair = Crypto.GenerateECDHKeyPair(Crypto.ECBuiltInDomainParams());
+			}
 		}
 		public Credentials GetAcquiredCredentials() => this.credentials;
 		public override async void RunServiceAsync()
