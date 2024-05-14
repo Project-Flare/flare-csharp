@@ -115,8 +115,6 @@ namespace flare_csharp
             Username = string.Empty;
         }
 
-
-
         public override string ToString()
         {
             return new string($"{Username}\n{Password}\n{Argon2Hash}\n{PseudoRandomConstant}\n{SecureRandom}\n" +

@@ -27,6 +27,7 @@ namespace flare_csharp
 			ServerUrl = serverUrl;
 			UserCredentialRequirements = new CredentialRequirements();
 			this.credentials = (credentials is null) ? new Credentials() : credentials;
+			this.credentials.AsymmetricCipherKeyPair = Crypto.GenerateECDHKeyPair();
 			authClient = new AuthClient(Channel);
 		}
 		public override void EndService()
@@ -272,7 +273,7 @@ namespace flare_csharp
 			{
 				Username = this.Username,
 				HashParams = hashParams,
-				IdentityPublicKey = "IDK", //[WARNING]
+				IdentityPublicKey = credentials.IdentityPublicKey,
 				PasswordHash = credentials.PasswordHash
 			};
 			CancellationTokenSource cancellationTokenSource = new CancellationTokenSource(TimeSpan.FromSeconds(10));
