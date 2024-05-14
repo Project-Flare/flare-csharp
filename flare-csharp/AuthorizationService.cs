@@ -13,7 +13,7 @@ using Isopoh.Cryptography.Argon2;
 namespace flare_csharp
 {
 	public enum ASState { Initialized, Connecting, ReceivingCredentialRequirements, SettingCreds, Registering, LoggingIn, Reconnecting, Aborted, EndedSuccessfully, Ended }
-	public enum ASCommand { Success, Fail, Abort, UserHasAccount, Reconnect, Retry }
+	public enum ASCommand { Success, Fail, Abort, UserHasAccount, Reconnect, Retry, End }
 	public class AuthorizationService : Service<ASState, ASCommand, GrpcChannel>
 	{
 		private AuthClient authClient;
@@ -32,7 +32,10 @@ namespace flare_csharp
 		}
 		public override void EndService()
 		{
-			Process.GoTo(ASState.Ended);
+			if (State == ASState.EndedSuccessfully || State == ASState.Ended)
+				return;
+			else
+				Process.MoveToNextState(ASCommand.End);
 		}
 		public override void StartService()
 		{
@@ -98,12 +101,8 @@ namespace flare_csharp
 							RegistrationToServerEvent += SetAuthToken;
 							On_RegistrationToServer(new RegistrationToServerEventArgs(registerResponse));
 							RegistrationToServerEvent -= SetAuthToken;
-							Process.MoveToNextState(ASCommand.Success);
 						}
-						catch
-						{
-							Process.MoveToNextState(ASCommand.Abort);
-						}
+						catch { }
 						break;
 					case ASState.LoggingIn:
 						try
@@ -129,6 +128,7 @@ namespace flare_csharp
 						}
 						break;
 					case ASState.Reconnecting:
+						// TODO: resolve infinite loop problem when reconnecting
 						try
 						{
 							CancellationTokenSource cancellationTokenSource = new CancellationTokenSource(TimeSpan.FromSeconds(20));
@@ -228,23 +228,34 @@ namespace flare_csharp
 		{
 			Process.AddStateTransition(transition: new Process<ASState, ASCommand>.StateTransition(currentState: ASState.Initialized, command: ASCommand.Success), processState: ASState.Connecting);
 			Process.AddStateTransition(transition: new Process<ASState, ASCommand>.StateTransition(currentState: ASState.Initialized, command: ASCommand.Abort), processState: ASState.Aborted);
+			Process.AddStateTransition(transition: new Process<ASState, ASCommand>.StateTransition(currentState: ASState.Initialized, command: ASCommand.End), processState: ASState.Ended);
 			Process.AddStateTransition(transition: new Process<ASState, ASCommand>.StateTransition(currentState: ASState.Connecting, command: ASCommand.UserHasAccount), processState: ASState.LoggingIn);
+			Process.AddStateTransition(transition: new Process<ASState, ASCommand>.StateTransition(currentState: ASState.Connecting, command: ASCommand.End), processState: ASState.Ended);
 			Process.AddStateTransition(transition: new Process<ASState, ASCommand>.StateTransition(currentState: ASState.Connecting, command: ASCommand.Success), processState: ASState.ReceivingCredentialRequirements);
 			Process.AddStateTransition(transition: new Process<ASState, ASCommand>.StateTransition(currentState: ASState.Connecting, command: ASCommand.Fail), processState: ASState.Reconnecting);
 			Process.AddStateTransition(transition: new Process<ASState, ASCommand>.StateTransition(currentState: ASState.ReceivingCredentialRequirements, command: ASCommand.Success), processState: ASState.SettingCreds);
+			Process.AddStateTransition(transition: new Process<ASState, ASCommand>.StateTransition(currentState: ASState.ReceivingCredentialRequirements, command: ASCommand.End), processState: ASState.Ended);
 			Process.AddStateTransition(transition: new Process<ASState, ASCommand>.StateTransition(currentState: ASState.ReceivingCredentialRequirements, command: ASCommand.Fail), processState: ASState.Reconnecting);
 			Process.AddStateTransition(transition: new Process<ASState, ASCommand>.StateTransition(currentState: ASState.SettingCreds, command: ASCommand.Abort), processState: ASState.Aborted);
+			Process.AddStateTransition(transition: new Process<ASState, ASCommand>.StateTransition(currentState: ASState.SettingCreds, command: ASCommand.End), processState: ASState.Ended);
 			Process.AddStateTransition(transition: new Process<ASState, ASCommand>.StateTransition(currentState: ASState.SettingCreds, command: ASCommand.Fail), processState: ASState.ReceivingCredentialRequirements);
 			Process.AddStateTransition(transition: new Process<ASState, ASCommand>.StateTransition(currentState: ASState.SettingCreds, command: ASCommand.Success), processState: ASState.Registering);
 			Process.AddStateTransition(transition: new Process<ASState, ASCommand>.StateTransition(currentState: ASState.Registering, command: ASCommand.Abort), processState: ASState.Reconnecting);
+			Process.AddStateTransition(transition: new Process<ASState, ASCommand>.StateTransition(currentState: ASState.Registering, command: ASCommand.End), processState: ASState.Ended);
 			Process.AddStateTransition(transition: new Process<ASState, ASCommand>.StateTransition(currentState: ASState.Registering, command: ASCommand.Success), processState: ASState.EndedSuccessfully);
 			Process.AddStateTransition(transition: new Process<ASState, ASCommand>.StateTransition(currentState: ASState.LoggingIn, command: ASCommand.Abort), processState: ASState.Aborted);
 			Process.AddStateTransition(transition: new Process<ASState, ASCommand>.StateTransition(currentState: ASState.LoggingIn, command: ASCommand.Fail), processState: ASState.ReceivingCredentialRequirements);
 			Process.AddStateTransition(transition: new Process<ASState, ASCommand>.StateTransition(currentState: ASState.LoggingIn, command: ASCommand.Reconnect), processState: ASState.Reconnecting);
 			Process.AddStateTransition(transition: new Process<ASState, ASCommand>.StateTransition(currentState: ASState.LoggingIn, command: ASCommand.Success), processState: ASState.EndedSuccessfully);
+			Process.AddStateTransition(transition: new Process<ASState, ASCommand>.StateTransition(currentState: ASState.LoggingIn, command: ASCommand.End), processState: ASState.Ended);
 			Process.AddStateTransition(transition: new Process<ASState, ASCommand>.StateTransition(currentState: ASState.Reconnecting, command: ASCommand.Success), processState: ASState.Connecting);
 			Process.AddStateTransition(transition: new Process<ASState, ASCommand>.StateTransition(currentState: ASState.Reconnecting, command: ASCommand.Abort), processState: ASState.Aborted);
+			Process.AddStateTransition(transition: new Process<ASState, ASCommand>.StateTransition(currentState: ASState.Reconnecting, command: ASCommand.End), processState: ASState.Ended);
 			Process.AddStateTransition(transition: new Process<ASState, ASCommand>.StateTransition(currentState: ASState.Aborted, command: ASCommand.Retry), processState: ASState.Initialized);
+			Process.AddStateTransition(transition: new Process<ASState, ASCommand>.StateTransition(currentState: ASState.Aborted, command: ASCommand.End), processState: ASState.Ended);
+			Process.AddStateTransition(transition: new Process<ASState, ASCommand>.StateTransition(currentState: ASState.Ended, command: ASCommand.End), processState: ASState.Ended);
+			Process.AddStateTransition(transition: new Process<ASState, ASCommand>.StateTransition(currentState: ASState.Ended, command: ASCommand.Success), processState: ASState.Ended);
+			Process.AddStateTransition(transition: new Process<ASState, ASCommand>.StateTransition(currentState: ASState.Ended, command: ASCommand.Retry), processState: ASState.Initialized);
 		}
 		/// <summary>
 		/// Sets <see cref="credentials"/> <see cref="Credentials.AuthToken"/> property if the registration was successful.
