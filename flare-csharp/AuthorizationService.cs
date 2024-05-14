@@ -8,10 +8,11 @@ using System.Text;
 using System.Security.Authentication;
 using System.Security;
 using System.Threading;
+using Isopoh.Cryptography.Argon2;
 
 namespace flare_csharp
 {
-	public enum ASState { Initialized, Connecting, ReceivingCredentialRequirements, SettingCreds, Registering, LoggingIn, Reconnecting, Aborted, EndedSuccessfully }
+	public enum ASState { Initialized, Connecting, ReceivingCredentialRequirements, SettingCreds, Registering, LoggingIn, Reconnecting, Aborted, EndedSuccessfully, Ended }
 	public enum ASCommand { Success, Fail, Abort, UserHasAccount, Reconnect, Retry }
 	public class AuthorizationService : Service<ASState, ASCommand, GrpcChannel>
 	{
@@ -30,7 +31,7 @@ namespace flare_csharp
 		}
 		public override void EndService()
 		{
-			throw new NotImplementedException();
+			Process.GoTo(ASState.Ended);
 		}
 		public override void StartService()
 		{
@@ -47,10 +48,7 @@ namespace flare_csharp
 		public void LoadUserCredentials(Credentials credentials)
 		{
 			this.credentials = credentials;
-			if (this.credentials.AsymmetricCipherKeyPair is null)
-			{
-				this.credentials.AsymmetricCipherKeyPair = Crypto.GenerateECDHKeyPair(Crypto.ECBuiltInDomainParams());
-			}
+			this.credentials.AsymmetricCipherKeyPair ??= Crypto.GenerateECDHKeyPair();
 		}
 		public Credentials GetAcquiredCredentials() => this.credentials;
 		public override async void RunServiceAsync()
@@ -201,7 +199,7 @@ namespace flare_csharp
 			Crypto.HashPasswordArgon2i(credentials);
 			LoginRequest loginRequest = new LoginRequest
 			{
-				IdentityPublicKey = "IDK", //[WARNING][TODO]
+				IdentityPublicKey = credentials.IdentityPublicKey,
 				Username = credentials.Username,
 				Password = credentials.PasswordHash
 			};
@@ -466,7 +464,8 @@ namespace flare_csharp
 			return Channel.State == Grpc.Core.ConnectivityState.Shutdown
 				|| Channel.State == Grpc.Core.ConnectivityState.TransientFailure
 				|| State == ASState.Aborted
-				|| State == ASState.EndedSuccessfully;
+				|| State == ASState.EndedSuccessfully
+				|| State == ASState.Ended;
 		}
 
 		public class CredentialRequirements

@@ -1,4 +1,6 @@
-﻿using Org.BouncyCastle.Crypto;
+﻿using Isopoh.Cryptography.Argon2;
+using Org.BouncyCastle.Crypto;
+using Org.BouncyCastle.X509;
 
 namespace flare_csharp
 {
@@ -82,6 +84,21 @@ namespace flare_csharp
         /// EC Diffie-Hellman Key Pair
         /// </summary>
         public AsymmetricCipherKeyPair? AsymmetricCipherKeyPair { get; set; }
+
+        /// <summary>
+        /// Used to send as user's public key to the server
+        /// </summary>
+        public string? IdentityPublicKey 
+        {
+            get
+            {
+                if (AsymmetricCipherKeyPair is not null)
+                    return 
+                        SubjectPublicKeyInfoFactory.CreateSubjectPublicKeyInfo(AsymmetricCipherKeyPair!.Public)
+                            .GetDerEncoded().ToB64String();
+                return null;
+            }
+        }
 
         /// <summary>
         /// Initializing with default values.

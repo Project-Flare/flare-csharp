@@ -1,20 +1,14 @@
-﻿using Google.Protobuf.WellKnownTypes;
-using Isopoh.Cryptography.Argon2;
+﻿using Isopoh.Cryptography.Argon2;
 using Isopoh.Cryptography.SecureArray;
 using Org.BouncyCastle.Crypto;
 using Org.BouncyCastle.Crypto.Engines;
 using Org.BouncyCastle.Crypto.Modes;
-using Org.BouncyCastle.Crypto.Paddings;
 using Org.BouncyCastle.Crypto.Parameters;
-using Org.BouncyCastle.Utilities;
-using System.Diagnostics;
 using System.Security.Cryptography;
 using System.Text;
 using Org.BouncyCastle.Crypto.Generators;
-using Org.BouncyCastle.Crypto.Parameters;
 using Org.BouncyCastle.Security;
 using Org.BouncyCastle.Asn1.X9;
-using Org.BouncyCastle.Crypto;
 using Org.BouncyCastle.Crypto.Agreement;
 
 namespace flare_csharp
@@ -127,8 +121,9 @@ namespace flare_csharp
         }
 
         /// EC Diffie-Hellman Key Pair Generation
-        public static AsymmetricCipherKeyPair GenerateECDHKeyPair(ECDomainParameters ecParams)
+        public static AsymmetricCipherKeyPair GenerateECDHKeyPair()
         {
+            ECDomainParameters ecParams = ECBuiltInDomainParams();
             ECKeyGenerationParameters ecKeyGenParams =
                 new ECKeyGenerationParameters(ecParams, new SecureRandom());
             ECKeyPairGenerator ecKeyPairGen = new ECKeyPairGenerator();
