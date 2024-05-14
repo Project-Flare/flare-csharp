@@ -10,6 +10,17 @@ using Org.BouncyCastle.Utilities;
 using System.Diagnostics;
 using System.Security.Cryptography;
 using System.Text;
+using Org.BouncyCastle;
+using Org.BouncyCastle.Crypto.Generators;
+using Org.BouncyCastle.Crypto.Parameters;
+using Org.BouncyCastle.Security;
+using Org.BouncyCastle.Asn1.Pkcs;
+using Org.BouncyCastle.Asn1.X9;
+using Org.BouncyCastle.Crypto;
+using System.Numerics;
+using Org.BouncyCastle.Crypto.Agreement;
+using Org.BouncyCastle.Math;
+using Org.BouncyCastle.X509;
 
 namespace flare_csharp
 {
@@ -109,6 +120,48 @@ namespace flare_csharp
             int result = cipherMode.ProcessBytes(ciphertext, 0, ciphertext.Length, plainTextData, 0);
             cipherMode.DoFinal(plainTextData, result);
             return plainTextData;
+        }
+
+        /// Generating Built In EC GF(p) Parameters using SEC_secp521r1 elliptic curve
+        public static ECDomainParameters ECBuiltInDomainParams()
+        {
+            const string SEC_SECP521R1 = "secp521r1";
+			X9ECParameters ecParams = ECNamedCurveTable.GetByName(SEC_SECP521R1);
+            return new ECDomainParameters(
+                ecParams.Curve, ecParams.G, ecParams.N, ecParams.H, ecParams.GetSeed());
+        }
+
+        /// EC Diffie-Hellman Key Pair Generation
+        public static AsymmetricCipherKeyPair GenerateECDHKeyPair(ECDomainParameters ecParams)
+        {
+            ECKeyGenerationParameters ecKeyGenParams =
+                new ECKeyGenerationParameters(ecParams, new SecureRandom());
+            ECKeyPairGenerator ecKeyPairGen = new ECKeyPairGenerator();
+            ecKeyPairGen.Init(ecKeyGenParams);
+            AsymmetricCipherKeyPair ecKeyPair = ecKeyPairGen.GenerateKeyPair();
+            return ecKeyPair;
+        }
+
+        /// EC Diffie-Hellman Key Agreement
+        public static Org.BouncyCastle.Math.BigInteger PartyABasicAgreement(ECPrivateKeyParameters privateKeyPartyA, ECPrivateKeyParameters publicKeyPartyB)
+        {
+            ECDHCBasicAgreement keyAgreement = new ECDHCBasicAgreement();
+            keyAgreement.Init(privateKeyPartyA);
+
+            Org.BouncyCastle.Math.BigInteger secret = keyAgreement.CalculateAgreement(publicKeyPartyB);
+
+            return secret;
+        }
+
+        /// EC Diffie-Hellman Key Agreement
+        public static Org.BouncyCastle.Math.BigInteger PartyBBasicAgreement(ECPrivateKeyParameters privateKeyPartyB, ECPrivateKeyParameters publicKeyPartyA)
+        {
+            ECDHCBasicAgreement keyAgreementParty = new ECDHCBasicAgreement();
+            keyAgreementParty.Init(privateKeyPartyB);
+
+            Org.BouncyCastle.Math.BigInteger secret = keyAgreementParty.CalculateAgreement(publicKeyPartyA);
+
+            return secret;
         }
     }
 }

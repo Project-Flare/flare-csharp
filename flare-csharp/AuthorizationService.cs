@@ -258,7 +258,7 @@ namespace flare_csharp
 		}
 		private async Task<RegisterResponse> RegisterToServerAsync()
 		{
-			credentials.MemoryCostBytes = Credentials.MEMORY_COST_BYTES;
+			credentials.MemoryCostBytes = Credentials.DEFAULT_MEMORY_COST_BYTES;
 			credentials.TimeCost = 3;
 			Crypto.HashPasswordArgon2i(credentials);
 			HashParams hashParams = new HashParams
