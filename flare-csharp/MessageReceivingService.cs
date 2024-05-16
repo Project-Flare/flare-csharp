@@ -75,7 +75,6 @@ namespace flare_csharp
 			//[DEV_NOTES]: pinging should be simple async task that will be awaited at the end of the loop
 			while (!ServiceEnded())
 			{
-				var pingChannelTask = PingChannel();
 				switch (State)
 				{
 					case MRSState.Initialized:
@@ -93,6 +92,7 @@ namespace flare_csharp
 								CancellationTokenSource cancellationTokenSource = new CancellationTokenSource(TimeSpan.FromSeconds(10));
 								await Channel.ConnectAsync(uri: new Uri(ServerUrl), cancellationToken: cancellationTokenSource.Token);
 								await SendSubscribeRequestAsync();
+								Task.Run(PingChannel).Start();
 								Process.MoveToNextState(MRSCommand.Connected);
 							}
 						}
@@ -110,15 +110,22 @@ namespace flare_csharp
 					case MRSState.Receiving:
 						try
 						{
-							(byte[] data, int offset, int length) receivedData = await ReceiveMessageAsync(5);
-							InboundMessage receivedMessage = new InboundMessage
+							(byte[] data, int offset, int length) receivedData = await ReceiveMessageAsync(2);
+							Message receivedMessage = new Message
 							{
 								InboundUserMessage = InboundUserMessage.Parser.ParseFrom(receivedData.data, receivedData.offset, receivedData.length)
 							};
-							receivedMessageQueue.Enqueue(receivedMessage);
+							if (!receivedMessageQueue.Contains(receivedMessage))
+							{
+								receivedMessageQueue.Enqueue(receivedMessage);
+							}
 							Process.MoveToNextState(MRSCommand.End);
 						}
-						catch //[TODO]: I guess I should check if I am connected or not? We shall see
+						catch (OperationCanceledException)
+						{
+							// This should be just ignored...
+						}
+						catch (Exception ex) //[TODO]: I guess I should check if I am connected or not? We shall see
 						{
 							Process.GoTo(MRSState.Reconnecting); // [WARNING]: JUST STOP PLEASE FIX THIS
 						}
@@ -130,8 +137,6 @@ namespace flare_csharp
 						{
 							try
 							{
-								Channel.Dispose();
-								Channel = new ClientWebSocket();
 								CancellationTokenSource cancellationTokenSource = new CancellationTokenSource(TimeSpan.FromSeconds(2));
 								await Channel.ConnectAsync(new Uri(ServerUrl), cancellationTokenSource.Token);
 								if (Channel.State == WebSocketState.Connecting || Channel.State == WebSocketState.Open)
@@ -153,7 +158,6 @@ namespace flare_csharp
 					default:
 						break;
 				}
-				await pingChannelTask;
 			}
 		}
 
@@ -162,17 +166,16 @@ namespace flare_csharp
 			return State == MRSState.Aborted;
 		}
 
-		private async Task<(byte[] data, int offset, int length)> ReceiveMessageAsync(int timeoutSeconds)
+		private async Task<(byte[] data, int offset, int length)> ReceiveMessageAsync(int cancelSeconds)
 		{
 			const int KILOBYTE = 1024;
 			byte[] buffer = new byte[KILOBYTE];
 			int byteCount = 0;
 			int free = buffer.Length;
-			var ct = new CancellationTokenSource(TimeSpan.FromSeconds(timeoutSeconds));
-
+			CancellationTokenSource cancellationTokenSource = new CancellationTokenSource(TimeSpan.FromSeconds(cancelSeconds));
 			while (true)
 			{
-				WebSocketReceiveResult response = await Channel.ReceiveAsync(new ArraySegment<byte>(buffer, byteCount, free), ct.Token);
+				WebSocketReceiveResult response = await Channel.ReceiveAsync(new ArraySegment<byte>(buffer, byteCount, free), cancellationTokenSource.Token);
 				if (response.EndOfMessage)
 				{
 					byteCount += response.Count;
@@ -198,14 +201,22 @@ namespace flare_csharp
 
 		private async Task PingChannel()
 		{
-			try
+			while(!ServiceEnded())
 			{
-				CancellationTokenSource cancellationTokenSource = new CancellationTokenSource(TimeSpan.FromSeconds(5));
-				await Channel.SendAsync(buffer: Encoding.ASCII.GetBytes("Ping me!"), messageType: WebSocketMessageType.Binary, endOfMessage: true, cancellationToken: cancellationTokenSource.Token);
-			}
-			catch (Exception) //[NOTE]: this is just that the task won't throw the exception when the connection is lost on the web socket channel
-			{
-
+				try
+				{
+					CancellationTokenSource cancellationTokenSource = new CancellationTokenSource(TimeSpan.FromSeconds(2));
+					await Channel.SendAsync(
+						buffer: Encoding.ASCII.GetBytes("Ping me!"),
+						messageType: WebSocketMessageType.Binary,
+						endOfMessage: true,
+						cancellationToken: cancellationTokenSource.Token);
+				}
+				catch (Exception ex)
+				{
+					// this is just that the task won't throw the exception when the connection is lost on the web socket channel
+				}
+				await Task.Delay(TimeSpan.FromSeconds(5));
 			}
 		}
 
@@ -219,12 +230,21 @@ namespace flare_csharp
 			return messageList;
 		}
 
-		public sealed class InboundMessage
+		public sealed class InboundMessage : IEquatable<Message>
 		{
 			public InboundUserMessage InboundUserMessage { get; set; }
 			public InboundMessage()
 			{
 				InboundUserMessage = new InboundUserMessage();
+			}
+
+			public bool Equals(Message? other)
+			{
+				if (other is null)
+					return false;
+				return
+					other.InboundUserMessage.SenderUsername.Equals(this.InboundUserMessage.SenderUsername)
+					&& other.InboundUserMessage.ServerTime.Equals(this.InboundUserMessage.ServerTime);
 			}
 
 			public DiffieHellmanMessage? Decrypt(IdentityStore identityStore)
