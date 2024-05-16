@@ -155,7 +155,7 @@ namespace flare_csharp
         }
 
         /// EC Diffie-Hellman Key Agreement
-        public static Org.BouncyCastle.Math.BigInteger PartyABasicAgreement(ECPrivateKeyParameters privateKeyPartyA, ECPrivateKeyParameters publicKeyPartyB)
+        public static Org.BouncyCastle.Math.BigInteger PartyBasicAgreement(ECPrivateKeyParameters privateKeyPartyA, ECPublicKeyParameters publicKeyPartyB)
         {
             ECDHCBasicAgreement keyAgreement = new ECDHCBasicAgreement();
             keyAgreement.Init(privateKeyPartyA);
@@ -165,22 +165,10 @@ namespace flare_csharp
             return secret;
         }
 
-        /// EC Diffie-Hellman Key Agreement
-        public static Org.BouncyCastle.Math.BigInteger PartyBBasicAgreement(ECPrivateKeyParameters privateKeyPartyB, ECPrivateKeyParameters publicKeyPartyA)
-        {
-            ECDHCBasicAgreement keyAgreementParty = new ECDHCBasicAgreement();
-            keyAgreementParty.Init(privateKeyPartyB);
-
-            Org.BouncyCastle.Math.BigInteger secret = keyAgreementParty.CalculateAgreement(publicKeyPartyA);
-
-            return secret;
-        }
-
         public static string GetDerEncodedPublicKey(AsymmetricKeyParameter publicKey)
         {
             return Convert.ToBase64String(
-                SubjectPublicKeyInfoFactory.CreateSubjectPublicKeyInfo(publicKey)
-                    .PublicKey.GetDerEncoded()
+                SubjectPublicKeyInfoFactory.CreateSubjectPublicKeyInfo(publicKey).GetDerEncoded()
             );
         }
 
@@ -194,8 +182,7 @@ namespace flare_csharp
         public static string GetDerEncodedPrivateKey(AsymmetricKeyParameter privateKey)
         {
             return Convert.ToBase64String(
-                PrivateKeyInfoFactory.CreatePrivateKeyInfo(privateKey)
-                    .PrivateKey.GetDerEncoded()
+                PrivateKeyInfoFactory.CreatePrivateKeyInfo(privateKey).GetDerEncoded()
             );
         }
 

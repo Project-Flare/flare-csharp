@@ -3,6 +3,7 @@ using flare_csharp.Services;
 using Google.Protobuf;
 using Grpc.Core;
 using Grpc.Net.Client;
+using Org.BouncyCastle.Crypto.Parameters;
 using System.Collections.Concurrent;
 using System.Diagnostics;
 
@@ -12,7 +13,7 @@ namespace flare_csharp
 	public enum MSSCommand { StartService, Success, Failure, SendEnqueuedMessage, MessageSent, Reconnect, Reconnected, Abort }
 	public sealed class MessageSendingService : Service<MSSState, MSSCommand, GrpcChannel>
 	{
-		private IdentityStore _identityStore; 
+		private IdentityStore IdentityStore; 
 		public Credentials Credentials { get; set; }
 		public string ServerUrl { get; set; }
 		private ConcurrentQueue<OutboundMessage> sendMessagesQueue;
@@ -24,7 +25,7 @@ namespace flare_csharp
 			sendMessagesQueue = new ConcurrentQueue<OutboundMessage>();
 			sentMessagesQueue = new ConcurrentQueue<OutboundMessage>();
 
-			_identityStore = identityStore;
+			IdentityStore = identityStore;
 		}
 		public override async void RunServiceAsync()
 		{
@@ -66,7 +67,7 @@ namespace flare_csharp
 						{
 							MessageRequest messageRequest = new MessageRequest
 							{
-								EncryptedMessage = message.EncryptMessage(),
+								EncryptedMessage = message.EncryptMessage(Credentials, IdentityStore),
 								RecipientUsername = message.RecipientUsername
 							};
 							Metadata headers = new Metadata { { "flare-auth", Credentials.AuthToken } };
@@ -163,15 +164,49 @@ namespace flare_csharp
 				MessageText = messageText;
 				IsSentSuccessfully = false;
 			}
-			public DiffieHellmanMessage EncryptMessage()
+			public DiffieHellmanMessage? EncryptMessage(Credentials credentials, IdentityStore identityStore)
 			{
-				var encryptedMessage = new DiffieHellmanMessage
+				var identity = identityStore.Contacts[RecipientUsername];
+
+				if (identity is null)
+					return null;
+
+				if (identity.SharedSecret is null)
 				{
-					Ciphertext = ByteString.CopyFromUtf8(MessageText),
-					Nonce = ByteString.CopyFromUtf8("LOL"),
-					SenderIdentityPublicKey = "public_key_lol"
+					try
+					{
+						identity.SharedSecret =
+							Crypto.FlareSharedSecretDerive(
+								Crypto.PartyBasicAgreement(
+									(ECPrivateKeyParameters)identityStore.Identity.Private,
+									(ECPublicKeyParameters)identity.PublicKey
+								).ToByteArray()
+							);
+
+					}
+					catch (InvalidOperationException)
+					{
+						return null;
+					}
+				}
+
+				var envelope = new MessageEnvelope
+				{
+					MessageId = 0,
+					ReferenceToId = 0,
+					SenderUsername = credentials.Username,
+					SenderTime = (ulong)DateTime.UtcNow.Subtract(DateTime.UnixEpoch).TotalMilliseconds,
+					TextMessage = new Text { Content = MessageText },
 				};
-				return encryptedMessage;
+
+				var package = Crypto.FlareAeadEncrypt(identity.SharedSecret, envelope.ToByteArray());
+
+				return new DiffieHellmanMessage
+				{
+					Ciphertext = ByteString.CopyFrom(package.Ciphertext),
+					Nonce = ByteString.CopyFrom(package.Nonce),
+					SenderIdentityPublicKey = Crypto.GetDerEncodedPublicKey(identityStore.Identity.Public),
+				};
 			}
 		}
 	}

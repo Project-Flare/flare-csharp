@@ -16,6 +16,6 @@ namespace flare_csharp
     public class IdentityStore
     {
         public AsymmetricCipherKeyPair? Identity;
-        public HashSet<string> Contacts = new();
+        public Dictionary<string, Identity> Contacts = new();
     }
 }

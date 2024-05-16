@@ -1,6 +1,7 @@
 ﻿using Flare.V1;
 using flare_csharp.Services;
 using Google.Protobuf;
+using Org.BouncyCastle.Crypto.Parameters;
 using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Net.WebSockets;
@@ -224,6 +225,40 @@ namespace flare_csharp
 			public InboundMessage()
 			{
 				InboundUserMessage = new InboundUserMessage();
+			}
+
+			public DiffieHellmanMessage? Decrypt(IdentityStore identityStore)
+			{
+				var sender = InboundUserMessage.SenderUsername;
+				var identity = identityStore.Contacts[sender];
+
+				if (identity is null)
+					return null;
+
+				if (identity.SharedSecret is null)
+				{
+					try
+					{
+                        identity.SharedSecret =
+							Crypto.FlareSharedSecretDerive(
+								Crypto.PartyBasicAgreement(
+									(ECPrivateKeyParameters)identityStore.Identity.Private,
+									(ECPublicKeyParameters)identity.PublicKey
+								).ToByteArray()
+							);
+
+                    } catch(InvalidOperationException)
+					{
+						return null;
+					}
+                }
+
+				var encryptedMessage = InboundUserMessage.EncryptedMessage;
+				var ciphertext = encryptedMessage.Ciphertext.ToByteArray();
+				FlareAeadCiphertext package = new(ciphertext, encryptedMessage.Nonce.ToByteArray());
+				byte[] plaintext = Crypto.FlareAeadDecrypt(identity.SharedSecret, package); // will throw
+
+				return DiffieHellmanMessage.Parser.ParseFrom(plaintext);
 			}
 		}
 	}
