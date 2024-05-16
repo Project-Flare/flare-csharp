@@ -21,13 +21,15 @@ namespace flare_csharp
 		public string ServerUrl { get; set; }
 		public CredentialRequirements UserCredentialRequirements { get; set; }
 		private Credentials credentials;
+		private IdentityStore? identityStore;
 		public string Username { get => credentials.Username; }
 		public string Password { get => credentials.Password; }
-		public AuthorizationService(string serverUrl, GrpcChannel channel, Credentials? credentials) : base(new Process<ASState, ASCommand>(ASState.Initialized), channel)
+		public AuthorizationService(string serverUrl, GrpcChannel channel, Credentials? credentials, IdentityStore identityStore) : base(new Process<ASState, ASCommand>(ASState.Initialized), channel)
 		{
 			ServerUrl = serverUrl;
 			UserCredentialRequirements = new CredentialRequirements();
 			this.credentials = (credentials is null) ? new Credentials() : credentials;
+			this.identityStore = identityStore;
 			authClient = new AuthClient(Channel);
 		}
 		public override void EndService()
@@ -58,6 +60,7 @@ namespace flare_csharp
 			this.credentials = credentials;
 		}
 		public Credentials GetAcquiredCredentials() => this.credentials;
+		public IdentityStore GetAcquiredIdentityStore() => this.identityStore;
 		public override async void RunServiceAsync()
 		{
 			while (!ServiceEnded())
@@ -213,18 +216,21 @@ namespace flare_csharp
 				throw new SecurityException($"Server sent less than minimum requirements to {hashParams.GetType().Name}");
 			}
 			LoginRequest loginRequest = new LoginRequest();
-
-			if (credentials.IdentityPublicKey == null)
+			if (identityStore.Identity is null)
 			{
-				credentials.AsymmetricCipherKeyPair = Crypto.GenerateECDHKeyPair();
+				identityStore.Identity = Crypto.GenerateECDHKeyPair();
 			}
-			credentials.MemoryCostBytes = (int)hashParams.MemoryCost;
-			credentials.TimeCost = (int)hashParams.TimeCost;
-			credentials.Salt = hashParams.Salt;
-			Crypto.HashPasswordArgon2i(credentials);
-			loginRequest.IdentityPublicKey = credentials.IdentityPublicKey;
-			loginRequest.Username = credentials.Username;
-			loginRequest.PasswordHash = credentials.PasswordHash;
+
+            credentials.MemoryCostBytes = (int)hashParams.MemoryCost;
+            credentials.TimeCost = (int)hashParams.TimeCost;
+            credentials.Salt = hashParams.Salt;
+
+			loginRequest.IdentityPublicKey = Crypto.GetDerEncodedPublicKey(
+				identityStore.Identity.Public
+			);
+            loginRequest.Username = credentials.Username;
+            Crypto.HashPasswordArgon2i(credentials);
+            loginRequest.PasswordHash = credentials.PasswordHash;
 			
 			cancellationTokenSource = new CancellationTokenSource(TimeSpan.FromSeconds(10));
 			LoginResponse loginResponse = authClient.Login(request: loginRequest, headers: null, deadline: null, cancellationTokenSource.Token);
@@ -306,7 +312,7 @@ namespace flare_csharp
 			{
 				Username = this.Username,
 				HashParams = hashParams,
-				IdentityPublicKey = credentials.IdentityPublicKey,
+				IdentityPublicKey = Crypto.GetDerEncodedPublicKey(identityStore.Identity.Public),
 				PasswordHash = credentials.PasswordHash
 			};
 			CancellationTokenSource cancellationTokenSource = new CancellationTokenSource(TimeSpan.FromSeconds(10));
