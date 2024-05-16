@@ -85,32 +85,6 @@ namespace flare_csharp
         public string AuthToken { get; set; }
 
 
-        //AsymmetricCipherKeyPair? _asymmetricCipherKeyPair;
-
-        /// <summary>
-        /// EC Diffie-Hellman Key Pair
-        /// </summary>
-   //     public AsymmetricCipherKeyPair? AsymmetricCipherKeyPair 
-   //     {
-   //         get => _asymmetricCipherKeyPair;
-   //         set
-   //         {
-   //             if (value is null)
-   //                 return;
-   //             _asymmetricCipherKeyPair = value;
-                
-   //             IdentityPublicKey = SubjectPublicKeyInfoFactory.CreateSubjectPublicKeyInfo(_asymmetricCipherKeyPair!.Public).GetDerEncoded().ToB64String();
-   //             IdentityPrivateKey = PrivateKeyInfoFactory.CreatePrivateKeyInfo(_asymmetricCipherKeyPair!.Private).GetDerEncoded().ToB64String();
-			//} 
-   //     }
-
-        /// <summary>
-        /// Used to send as user's public key to the server
-        /// </summary>
-        //public string? IdentityPublicKey { get; set; }
-
-        //public string? IdentityPrivateKey { get; set; }
-
         /// <summary>
         /// Initializing with default values.
         /// </summary>
