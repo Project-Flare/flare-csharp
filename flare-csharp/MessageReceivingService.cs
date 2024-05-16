@@ -92,11 +92,11 @@ namespace flare_csharp
 								CancellationTokenSource cancellationTokenSource = new CancellationTokenSource(TimeSpan.FromSeconds(10));
 								await Channel.ConnectAsync(uri: new Uri(ServerUrl), cancellationToken: cancellationTokenSource.Token);
 								await SendSubscribeRequestAsync();
-								Task.Run(PingChannel).Start();
+								Task.Run(PingChannel);
 								Process.MoveToNextState(MRSCommand.Connected);
 							}
 						}
-						catch
+						catch (Exception ex)
 						{
 							Process.MoveToNextState(MRSCommand.Fail);
 						}
@@ -137,6 +137,8 @@ namespace flare_csharp
 						{
 							try
 							{
+								Channel.Dispose();
+								Channel = new();
 								CancellationTokenSource cancellationTokenSource = new CancellationTokenSource(TimeSpan.FromSeconds(2));
 								await Channel.ConnectAsync(new Uri(ServerUrl), cancellationTokenSource.Token);
 								if (Channel.State == WebSocketState.Connecting || Channel.State == WebSocketState.Open)
@@ -147,7 +149,7 @@ namespace flare_csharp
 									reconnectionAttempts = int.MaxValue;
 								}
 							}
-							catch
+							catch (Exception ex)
 							{
 								Thread.Sleep(TimeSpan.FromSeconds(2));
 								reconnectionAttempts++;
@@ -175,7 +177,7 @@ namespace flare_csharp
 			CancellationTokenSource cancellationTokenSource = new CancellationTokenSource(TimeSpan.FromSeconds(cancelSeconds));
 			while (true)
 			{
-				WebSocketReceiveResult response = await Channel.ReceiveAsync(new ArraySegment<byte>(buffer, byteCount, free), cancellationTokenSource.Token);
+				WebSocketReceiveResult response = await Channel.ReceiveAsync(new ArraySegment<byte>(buffer, byteCount, free), CancellationToken.None);
 				if (response.EndOfMessage)
 				{
 					byteCount += response.Count;
