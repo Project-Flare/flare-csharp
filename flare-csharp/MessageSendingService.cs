@@ -12,16 +12,19 @@ namespace flare_csharp
 	public enum MSSCommand { StartService, Success, Failure, SendEnqueuedMessage, MessageSent, Reconnect, Reconnected, Abort }
 	public sealed class MessageSendingService : Service<MSSState, MSSCommand, GrpcChannel>
 	{
+		private IdentityStore _identityStore; 
 		public Credentials Credentials { get; set; }
 		public string ServerUrl { get; set; }
-		private ConcurrentQueue<Message> sendMessagesQueue;
-		private ConcurrentQueue<Message> sentMessagesQueue;
-		public MessageSendingService(Process<MSSState, MSSCommand> process, string serverUrl, Credentials credentials, GrpcChannel channel) : base(process, channel)
+		private ConcurrentQueue<OutboundMessage> sendMessagesQueue;
+		private ConcurrentQueue<OutboundMessage> sentMessagesQueue;
+		public MessageSendingService(Process<MSSState, MSSCommand> process, string serverUrl, Credentials credentials, GrpcChannel channel, IdentityStore identityStore) : base(process, channel)
 		{
 			Credentials = credentials;
 			ServerUrl = serverUrl;
-			sendMessagesQueue = new ConcurrentQueue<Message>();
-			sentMessagesQueue = new ConcurrentQueue<Message>();
+			sendMessagesQueue = new ConcurrentQueue<OutboundMessage>();
+			sentMessagesQueue = new ConcurrentQueue<OutboundMessage>();
+
+			_identityStore = identityStore;
 		}
 		public override async void RunServiceAsync()
 		{
@@ -52,7 +55,7 @@ namespace flare_csharp
 						}
 						break;
 					case MSSState.SendingMessage:
-						Message? message;
+						OutboundMessage? message;
 						sendMessagesQueue.TryPeek(out message); // won't dequeue message until I make sure I sent it
 						if (message is null)
 						{
@@ -114,7 +117,7 @@ namespace flare_csharp
 				}
 			}
 		}
-		public void SendMessage(Message message)
+		public void SendMessage(OutboundMessage message)
 		{
 			sendMessagesQueue.Enqueue(message);
 		}
@@ -141,7 +144,7 @@ namespace flare_csharp
 			if (State == MSSState.Initialized)
 				Process.MoveToNextState(MSSCommand.StartService);
 			if (State == MSSState.Aborted) // [TODO]: throw better Exception
-				throw new Exception("The service is aborted");
+				throw new InvalidOperationException("The service is aborted");
 		}
 
 		public override void EndService()
@@ -149,12 +152,12 @@ namespace flare_csharp
 			throw new NotImplementedException();
 		}
 
-		public sealed class Message         // this may change later, now I just need a simple wrapper class for sending messages
+		public sealed class OutboundMessage         // this may change later, now I just need a simple wrapper class for sending messages
 		{
 			public string RecipientUsername { get; set; }
 			public string MessageText { get; set; }
 			public bool IsSentSuccessfully { get; set; }
-			public Message(string recipientUsername, string messageText)
+			public OutboundMessage(string recipientUsername, string messageText)
 			{
 				RecipientUsername = recipientUsername;
 				MessageText = messageText;

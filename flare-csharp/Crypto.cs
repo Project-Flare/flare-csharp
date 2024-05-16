@@ -11,6 +11,9 @@ using Org.BouncyCastle.Security;
 using Org.BouncyCastle.Asn1.X9;
 using Org.BouncyCastle.Crypto.Agreement;
 using Org.BouncyCastle.Crypto.Digests;
+using Org.BouncyCastle.Pkcs;
+using Org.BouncyCastle.X509;
+using System.Security.Principal;
 
 namespace flare_csharp
 {
@@ -171,6 +174,36 @@ namespace flare_csharp
             Org.BouncyCastle.Math.BigInteger secret = keyAgreementParty.CalculateAgreement(publicKeyPartyA);
 
             return secret;
+        }
+
+        public static string GetDerEncodedPublicKey(AsymmetricKeyParameter publicKey)
+        {
+            return Convert.ToBase64String(
+                SubjectPublicKeyInfoFactory.CreateSubjectPublicKeyInfo(publicKey)
+                    .PublicKey.GetDerEncoded()
+            );
+        }
+
+        public static AsymmetricKeyParameter GetPublicKeyFromDer(string publicKey)
+        {
+            return PublicKeyFactory.CreateKey(
+                Convert.FromBase64String(publicKey)
+            );
+        }
+
+        public static string GetDerEncodedPrivateKey(AsymmetricKeyParameter privateKey)
+        {
+            return Convert.ToBase64String(
+                PrivateKeyInfoFactory.CreatePrivateKeyInfo(privateKey)
+                    .PrivateKey.GetDerEncoded()
+            );
+        }
+
+        public static AsymmetricKeyParameter GetPrivateKeyFromDer(string privateKey)
+        {
+            return PrivateKeyFactory.CreateKey(
+                Convert.FromBase64String(privateKey)
+            );
         }
     }
 }

@@ -12,14 +12,17 @@ namespace flare_csharp
 	public enum MRSCommand { Run, Connected, Reconnect, Receive, Abort, End, Fail }
 	public class MessageReceivingService : Service<MRSState, MRSCommand, ClientWebSocket>
 	{
+		private IdentityStore _identityStore;
 		public Credentials Credentials { get; set; }
 		public string ServerUrl { get; private set; }
-		private ConcurrentQueue<Message> receivedMessageQueue;
-		public MessageReceivingService(Process<MRSState, MRSCommand> process, string serverUrl, Credentials credentials) : base(process, new ClientWebSocket())
+		private ConcurrentQueue<InboundMessage> receivedMessageQueue;
+		public MessageReceivingService(Process<MRSState, MRSCommand> process, string serverUrl, Credentials credentials, IdentityStore identityStore) : base(process, new ClientWebSocket())
 		{
 			Credentials = credentials;
 			ServerUrl = serverUrl;
-			receivedMessageQueue = new ConcurrentQueue<Message>();
+			receivedMessageQueue = new ConcurrentQueue<InboundMessage>();
+
+			_identityStore = identityStore;
 		}
 
 		protected override void DefineWorkflow()
@@ -48,7 +51,7 @@ namespace flare_csharp
 		{
 			try
 			{
-				CancellationTokenSource cancellationTokenSource = new CancellationTokenSource(TimeSpan.FromSeconds(3));
+				CancellationTokenSource cancellationTokenSource = new(TimeSpan.FromSeconds(3));
 				SubscribeRequest subscribeRequest = new SubscribeRequest
 				{
 					Token = Credentials.AuthToken,
@@ -216,9 +219,9 @@ namespace flare_csharp
 			}
 		}
 
-		public List<Message> FetchReceivedMessages()
+		public List<InboundMessage> FetchReceivedMessages()
 		{
-			var messageList = new List<Message>();
+			var messageList = new List<InboundMessage>();
 			foreach(var message in receivedMessageQueue)
 			{
 				messageList.Add(message);
@@ -226,10 +229,10 @@ namespace flare_csharp
 			return messageList;
 		}
 
-		public sealed class Message : IEquatable<Message>
+		public sealed class InboundMessage : IEquatable<Message>
 		{
 			public InboundUserMessage InboundUserMessage { get; set; }
-			public Message()
+			public InboundMessage()
 			{
 				InboundUserMessage = new InboundUserMessage();
 			}
