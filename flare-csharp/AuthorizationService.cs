@@ -27,7 +27,6 @@ namespace flare_csharp
 			ServerUrl = serverUrl;
 			UserCredentialRequirements = new CredentialRequirements();
 			this.credentials = (credentials is null) ? new Credentials() : credentials;
-			this.credentials.AsymmetricCipherKeyPair = Crypto.GenerateECDHKeyPair();
 			authClient = new AuthClient(Channel);
 		}
 		public override void EndService()
@@ -52,7 +51,6 @@ namespace flare_csharp
 		public void LoadUserCredentials(Credentials credentials)
 		{
 			this.credentials = credentials;
-			this.credentials.AsymmetricCipherKeyPair ??= Crypto.GenerateECDHKeyPair();
 		}
 		public Credentials GetAcquiredCredentials() => this.credentials;
 		public override async void RunServiceAsync()
@@ -191,16 +189,25 @@ namespace flare_csharp
 				On_LoggedInToServer(new LoggedInEventArgs(success: false, LoggedInEventArgs.FailureReason.UntrustworthyServer));
 				throw new SecurityException($"Server sent less than minimum requirements to {hashParams.GetType().Name}");
 			}
-			credentials.MemoryCostBytes = (int)hashParams.MemoryCost;
-			credentials.TimeCost = (int)hashParams.TimeCost;
-			credentials.Salt = hashParams.Salt;
-			Crypto.HashPasswordArgon2i(credentials);
-			LoginRequest loginRequest = new LoginRequest
+			LoginRequest loginRequest = new LoginRequest();
+			if (credentials.IdentityPrivateKey is null)
 			{
-				IdentityPublicKey = credentials.IdentityPublicKey,
-				Username = credentials.Username,
-				Password = credentials.PasswordHash
-			};
+				credentials.AsymmetricCipherKeyPair = Crypto.GenerateECDHKeyPair();
+				credentials.MemoryCostBytes = (int)hashParams.MemoryCost;
+				credentials.TimeCost = (int)hashParams.TimeCost;
+				credentials.Salt = hashParams.Salt;
+				Crypto.HashPasswordArgon2i(credentials);
+				loginRequest.IdentityPublicKey = credentials.IdentityPublicKey;
+				loginRequest.Username = credentials.Username;
+				loginRequest.PasswordHash = credentials.PasswordHash;
+			}
+			else
+			{
+				loginRequest.IdentityPublicKey = credentials.IdentityPublicKey;
+				loginRequest.Username = credentials.Username;
+				loginRequest.PasswordHash = credentials.PasswordHash; // [WARNING_TODO]: this MUST be changed ig
+			}
+			
 			cancellationTokenSource = new CancellationTokenSource(TimeSpan.FromSeconds(10));
 			LoginResponse loginResponse = authClient.Login(request: loginRequest, headers: null, deadline: null, cancellationTokenSource.Token);
 			if (loginResponse.HasFailure)

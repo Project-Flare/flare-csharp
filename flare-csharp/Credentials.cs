@@ -81,34 +81,34 @@ namespace flare_csharp
         /// </summary>
         public string AuthToken { get; set; }
 
+
+        AsymmetricCipherKeyPair? _asymmetricCipherKeyPair;
+
         /// <summary>
         /// EC Diffie-Hellman Key Pair
         /// </summary>
-        public AsymmetricCipherKeyPair? AsymmetricCipherKeyPair { get; set; }
+        public AsymmetricCipherKeyPair? AsymmetricCipherKeyPair 
+        {
+            get => _asymmetricCipherKeyPair;
+            set
+            {
+                if (value is null)
+                    return;
+                _asymmetricCipherKeyPair = value;
+                
+                IdentityPublicKey = SubjectPublicKeyInfoFactory.CreateSubjectPublicKeyInfo(_asymmetricCipherKeyPair!.Public).GetDerEncoded().ToB64String();
+                // [IMPORTANT_TODO]: figure out how to store private key in string, because now it throws exception
+                // IdentityPrivateKey = SubjectPublicKeyInfoFactory.CreateSubjectPublicKeyInfo(_asymmetricCipherKeyPair!.Private).GetDerEncoded().ToB64String();
+                IdentityPrivateKey = string.Empty;
+			} 
+        }
 
         /// <summary>
         /// Used to send as user's public key to the server
         /// </summary>
-        public string? IdentityPublicKey 
-        {
-            get
-            {
-                if (AsymmetricCipherKeyPair is not null)
-                    return 
-                        SubjectPublicKeyInfoFactory.CreateSubjectPublicKeyInfo(AsymmetricCipherKeyPair!.Public).GetDerEncoded().ToB64String();
-                return null;
-            }
-        }
+        public string? IdentityPublicKey { get; set; }
 
-        public string? IdentityPrivateKey
-        {
-            get
-            {
-                if (AsymmetricCipherKeyPair is not null)
-                    return SubjectPublicKeyInfoFactory.CreateSubjectPublicKeyInfo(AsymmetricCipherKeyPair.Private).GetDerEncoded().ToB64String();
-                return null;
-            }
-        } 
+        public string? IdentityPrivateKey { get; set; }
 
         /// <summary>
         /// Initializing with default values.
