@@ -243,8 +243,8 @@ namespace flare_csharp
 				if (other is null)
 					return false;
 				return
-					other.InboundUserMessage.SenderUsername.Equals(this.InboundUserMessage.SenderUsername)
-					&& other.InboundUserMessage.ServerTime.Equals(this.InboundUserMessage.ServerTime);
+					other.InboundUserMessage.SenderUsername.Equals(InboundUserMessage.SenderUsername)
+					&& other.InboundUserMessage.ServerTime.Equals(InboundUserMessage.ServerTime);
 			}
 
 			public DiffieHellmanMessage? Decrypt(IdentityStore identityStore)

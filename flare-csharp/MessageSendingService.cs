@@ -13,7 +13,7 @@ namespace flare_csharp
 	public enum MSSCommand { StartService, Success, Failure, SendEnqueuedMessage, MessageSent, Reconnect, Reconnected, Abort }
 	public sealed class MessageSendingService : Service<MSSState, MSSCommand, GrpcChannel>
 	{
-		private IdentityStore IdentityStore; 
+		public IdentityStore IdentityStore; 
 		public Credentials Credentials { get; set; }
 		public string ServerUrl { get; set; }
 		private ConcurrentQueue<OutboundMessage> sendMessagesQueue;
@@ -78,7 +78,7 @@ namespace flare_csharp
 							sentMessagesQueue.Enqueue(message);
 							Process.MoveToNextState(MSSCommand.MessageSent);
 						}
-						catch // [NOTE]: maybe handle different exceptions accordingly (for example: message failed to send not because of connection issues
+						catch (Exception ex) // [NOTE]: maybe handle different exceptions accordingly (for example: message failed to send not because of connection issues
 						{
 							Process.MoveToNextState(MSSCommand.Reconnect);
 						}
