@@ -222,14 +222,17 @@ namespace flare_csharp
 			}
 		}
 
-		public List<InboundMessage> FetchReceivedMessages()
+		public List<InboundMessage> FetchReceivedMessages(string username)
 		{
-			var messageList = new List<InboundMessage>();
+			var messageList = new HashSet<InboundMessage>();
 			foreach(var message in receivedMessageQueue)
 			{
-				messageList.Add(message);
+				if (message.InboundUserMessage.SenderUsername == username)
+				{
+					messageList.Add(message);
+				}
 			}
-			return messageList;
+			return messageList.ToList();
 		}
 
 		public sealed class InboundMessage : IEquatable<InboundMessage>
@@ -249,7 +252,12 @@ namespace flare_csharp
 					&& other.InboundUserMessage.ServerTime.Equals(InboundUserMessage.ServerTime);
 			}
 
-			public DiffieHellmanMessage? Decrypt(IdentityStore identityStore)
+			public override int GetHashCode()
+			{
+				return InboundUserMessage.EncryptedMessage.GetHashCode() * InboundUserMessage.ServerTime.GetHashCode();
+			}
+
+			public MessageEnvelope? Decrypt(IdentityStore identityStore)
 			{
 				var sender = InboundUserMessage.SenderUsername;
 				var identity = identityStore.Contacts[sender];
@@ -280,7 +288,7 @@ namespace flare_csharp
 				FlareAeadCiphertext package = new(ciphertext, encryptedMessage.Nonce.ToByteArray());
 				byte[] plaintext = Crypto.FlareAeadDecrypt(identity.SharedSecret, package); // will throw
 
-				return DiffieHellmanMessage.Parser.ParseFrom(plaintext);
+				return MessageEnvelope.Parser.ParseFrom(plaintext);
 			}
 		}
 	}
