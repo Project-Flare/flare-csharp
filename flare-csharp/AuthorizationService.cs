@@ -126,7 +126,7 @@ namespace flare_csharp
 							On_RegistrationToServer(new RegistrationToServerEventArgs(registerResponse));
 							RegistrationToServerEvent -= SetAuthToken;
 						}
-						catch { }
+						catch (Exception ex){ }
 						break;
 					case ASState.LoggingIn:
 						try
@@ -308,6 +308,9 @@ namespace flare_csharp
 				TimeCost = (ulong)credentials.TimeCost,
 				Salt = credentials.PseudoRandomConstant + credentials.SecureRandom
 			};
+			if (identityStore is null)
+				identityStore = new();
+			identityStore.Identity = Crypto.GenerateECDHKeyPair();
 			RegisterRequest registerRequest = new RegisterRequest
 			{
 				Username = this.Username,
