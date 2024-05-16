@@ -9,6 +9,7 @@ using System.Security.Authentication;
 using System.Security;
 using System.Threading;
 using Isopoh.Cryptography.Argon2;
+using Grpc.Core;
 
 namespace flare_csharp
 {
@@ -42,9 +43,13 @@ namespace flare_csharp
 			{
 				Process.MoveToNextState(ASCommand.Retry);
 			}
-			if (State == ASState.Initialized)
+			else if (State == ASState.Initialized)
 			{
 				Process.MoveToNextState(ASCommand.Success);
+			}
+			else
+			{
+				Process.GoTo(ASState.Connecting);
 			}
 		}
 		public Thread? GiveServiceThread() => Process.ProcessThread;
@@ -65,9 +70,27 @@ namespace flare_csharp
 							CancellationTokenSource cancellationTokenSource = new CancellationTokenSource(TimeSpan.FromSeconds(5));
 							await Channel.ConnectAsync(cancellationTokenSource.Token);
 							if (credentials.Username == string.Empty && credentials.Password == string.Empty)
+							{
 								Process.MoveToNextState(ASCommand.Success);
+							}
+							else if (!string.IsNullOrEmpty(credentials.AuthToken))
+							{
+								bool tokenIsOk = await CheckTokenHealth();
+								if (tokenIsOk)
+								{
+									On_LoggedInToServer(new LoggedInEventArgs(success: true, failureReason: null));
+								}
+								On_LoggedInToServer(new LoggedInEventArgs(success: false, failureReason: LoggedInEventArgs.FailureReason.AuthTokenExpired));
+								Process.MoveToNextState(ASCommand.End);
+							}
 							else
+							{
 								Process.MoveToNextState(ASCommand.UserHasAccount);
+							}
+						}
+						catch (KeyNotFoundException)
+						{
+							Process.MoveToNextState(ASCommand.Abort);
 						}
 						catch
 						{
@@ -145,7 +168,7 @@ namespace flare_csharp
 		public class LoggedInEventArgs : EventArgs
 		{
 			public bool LoggedInSuccessfully { get; private set; }
-			public enum FailureReason { None, UntrustworthyServer,  PasswordInvalid, UsernameInvalid, ServerError, UsernameNotExist, UserDoesNotExits, Unknown }
+			public enum FailureReason { None, UntrustworthyServer,  PasswordInvalid, UsernameInvalid, ServerError, UsernameNotExist, UserDoesNotExits, AuthTokenExpired, Unknown }
 			public FailureReason LoginFailureReason { get; private set; }
 			public LoggedInEventArgs(bool success, FailureReason? failureReason)
 			{
@@ -190,23 +213,18 @@ namespace flare_csharp
 				throw new SecurityException($"Server sent less than minimum requirements to {hashParams.GetType().Name}");
 			}
 			LoginRequest loginRequest = new LoginRequest();
-			if (credentials.IdentityPrivateKey is null)
+
+			if (credentials.IdentityPublicKey == null)
 			{
 				credentials.AsymmetricCipherKeyPair = Crypto.GenerateECDHKeyPair();
-				credentials.MemoryCostBytes = (int)hashParams.MemoryCost;
-				credentials.TimeCost = (int)hashParams.TimeCost;
-				credentials.Salt = hashParams.Salt;
-				Crypto.HashPasswordArgon2i(credentials);
-				loginRequest.IdentityPublicKey = credentials.IdentityPublicKey;
-				loginRequest.Username = credentials.Username;
-				loginRequest.PasswordHash = credentials.PasswordHash;
 			}
-			else
-			{
-				loginRequest.IdentityPublicKey = credentials.IdentityPublicKey;
-				loginRequest.Username = credentials.Username;
-				loginRequest.PasswordHash = credentials.PasswordHash; // [WARNING_TODO]: this MUST be changed ig
-			}
+			credentials.MemoryCostBytes = (int)hashParams.MemoryCost;
+			credentials.TimeCost = (int)hashParams.TimeCost;
+			credentials.Salt = hashParams.Salt;
+			Crypto.HashPasswordArgon2i(credentials);
+			loginRequest.IdentityPublicKey = credentials.IdentityPublicKey;
+			loginRequest.Username = credentials.Username;
+			loginRequest.PasswordHash = credentials.PasswordHash;
 			
 			cancellationTokenSource = new CancellationTokenSource(TimeSpan.FromSeconds(10));
 			LoginResponse loginResponse = authClient.Login(request: loginRequest, headers: null, deadline: null, cancellationTokenSource.Token);
@@ -294,6 +312,16 @@ namespace flare_csharp
 			CancellationTokenSource cancellationTokenSource = new CancellationTokenSource(TimeSpan.FromSeconds(10));
 			RegisterResponse registerResponse = await authClient.RegisterAsync(registerRequest, headers: null, deadline: null, cancellationTokenSource.Token);
 			return registerResponse;
+		}
+		private async Task<bool> CheckTokenHealth()
+		{
+			CancellationTokenSource cancellationTokenSource = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+			Metadata headers = new Metadata { { "flare-auth", credentials.AuthToken } };
+			TokenHealthRequest tokenHealthRequest = new TokenHealthRequest();
+			TokenHealthResponse tokenHealthResponse = await authClient.GetTokenHealthAsync(tokenHealthRequest, headers, deadline: null, cancellationTokenSource.Token);
+			if (tokenHealthResponse.Health == TokenHealthResponse.Types.TokenHealth.Ok)
+				return true;
+			return false;
 		}
 
 		public delegate void RegistrationToServerDelegate(RegistrationToServerEventArgs eventArgs);
