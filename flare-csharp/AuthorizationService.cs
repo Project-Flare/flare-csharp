@@ -86,7 +86,7 @@ namespace flare_csharp
 								On_LoggedInToServer(new LoggedInEventArgs(success: false, failureReason: LoggedInEventArgs.FailureReason.AuthTokenExpired));
 								Process.MoveToNextState(ASCommand.End);
 							}
-							else
+							else if (!string.IsNullOrEmpty(credentials.Password)) // todo: infinite login loop
 							{
 								Process.MoveToNextState(ASCommand.UserHasAccount);
 							}
