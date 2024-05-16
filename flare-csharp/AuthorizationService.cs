@@ -21,7 +21,7 @@ namespace flare_csharp
 		public string ServerUrl { get; set; }
 		public CredentialRequirements UserCredentialRequirements { get; set; }
 		private Credentials credentials;
-		private IdentityStore? identityStore;
+		public IdentityStore? identityStore;
 		public string Username { get => credentials.Username; }
 		public string Password { get => credentials.Password; }
 		public AuthorizationService(string serverUrl, GrpcChannel channel, Credentials? credentials, IdentityStore identityStore) : base(new Process<ASState, ASCommand>(ASState.Initialized), channel)
