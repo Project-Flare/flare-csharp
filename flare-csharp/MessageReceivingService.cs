@@ -111,8 +111,8 @@ namespace flare_csharp
 						try
 						{
 							(byte[] data, int offset, int length) receivedData = await ReceiveMessageAsync(2);
-							Message receivedMessage = new Message
-							{
+                            InboundMessage receivedMessage = new InboundMessage
+                            {
 								InboundUserMessage = InboundUserMessage.Parser.ParseFrom(receivedData.data, receivedData.offset, receivedData.length)
 							};
 							if (!receivedMessageQueue.Contains(receivedMessage))
@@ -230,7 +230,7 @@ namespace flare_csharp
 			return messageList;
 		}
 
-		public sealed class InboundMessage : IEquatable<Message>
+		public sealed class InboundMessage : IEquatable<InboundMessage>
 		{
 			public InboundUserMessage InboundUserMessage { get; set; }
 			public InboundMessage()
@@ -238,7 +238,7 @@ namespace flare_csharp
 				InboundUserMessage = new InboundUserMessage();
 			}
 
-			public bool Equals(Message? other)
+			public bool Equals(InboundMessage? other)
 			{
 				if (other is null)
 					return false;
