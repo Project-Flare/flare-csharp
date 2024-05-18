@@ -26,7 +26,14 @@ namespace flare_csharp
 			_identityStore = identityStore;
 		}
 
-		protected override void DefineWorkflow()
+        public delegate void MessageReceivedDelegate(InboundMessage message);
+        public event MessageReceivedDelegate? ReceivedMessageEvent;
+		private void OnMessageReceived(InboundMessage message)
+		{
+			ReceivedMessageEvent?.Invoke(message);
+		}
+
+        protected override void DefineWorkflow()
 		{
 			Process.AddStateTransition(transition: new Process<MRSState, MRSCommand>.StateTransition(currentState: MRSState.Initialized, command: MRSCommand.Run), processState: MRSState.Connecting);
 			Process.AddStateTransition(transition: new Process<MRSState, MRSCommand>.StateTransition(currentState: MRSState.Connecting, command: MRSCommand.Connected), processState: MRSState.Listening);
@@ -118,6 +125,7 @@ namespace flare_csharp
 							if (!receivedMessageQueue.Contains(receivedMessage))
 							{
 								receivedMessageQueue.Enqueue(receivedMessage);
+								OnMessageReceived(receivedMessage);
 							}
 							Process.MoveToNextState(MRSCommand.End);
 						}
