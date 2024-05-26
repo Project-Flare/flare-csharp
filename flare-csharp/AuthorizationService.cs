@@ -146,7 +146,7 @@ namespace flare_csharp
 						{
 							Process.MoveToNextState(ASCommand.Abort);
 						}
-						catch (Exception)
+						catch (Exception ex)
 						{
 							Process.MoveToNextState(ASCommand.Reconnect);
 						}

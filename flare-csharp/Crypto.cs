@@ -76,7 +76,7 @@ namespace flare_csharp
         /// </summary>
         /// <param name="input_secret"></param>
         /// <returns></returns>
-        public static byte[] FlareSharedSecretDerive(byte[] input_secret)
+        public static byte[] DeriveBlake3(byte[] input_secret)
         {
             byte[] output = new byte[32];
             var digest = new Blake3Digest();
@@ -87,7 +87,6 @@ namespace flare_csharp
 
             return output;
         }
-
 
         /// <summary>
         /// Encrypts a byte array plaintext to the Flare protocol's transmission format

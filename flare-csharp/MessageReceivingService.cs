@@ -278,7 +278,7 @@ namespace flare_csharp
 					try
 					{
                         identity.SharedSecret =
-							Crypto.FlareSharedSecretDerive(
+							Crypto.DeriveBlake3(
 								Crypto.PartyBasicAgreement(
 									(ECPrivateKeyParameters)identityStore.Identity.Private,
 									(ECPublicKeyParameters)identity.PublicKey
