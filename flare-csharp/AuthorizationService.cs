@@ -70,7 +70,7 @@ namespace flare_csharp
 					case ASState.Connecting:
 						try
 						{
-							CancellationTokenSource cancellationTokenSource = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+							CancellationTokenSource cancellationTokenSource = new CancellationTokenSource(TimeSpan.FromSeconds(2));
 							await Channel.ConnectAsync(cancellationTokenSource.Token);
 							if (credentials.Username == string.Empty && credentials.Password == string.Empty)
 							{
@@ -95,7 +95,7 @@ namespace flare_csharp
 						{
 							Process.MoveToNextState(ASCommand.Abort);
 						}
-						catch
+						catch (Exception ex)
 						{
 							Process.MoveToNextState(ASCommand.Fail);
 						}
@@ -155,11 +155,16 @@ namespace flare_csharp
 						// TODO: resolve infinite loop problem when reconnecting
 						try
 						{
-							CancellationTokenSource cancellationTokenSource = new CancellationTokenSource(TimeSpan.FromSeconds(20));
+							CancellationTokenSource cancellationTokenSource = new CancellationTokenSource(TimeSpan.FromSeconds(2));
 							await Channel.ConnectAsync(cancellationTokenSource.Token);
 							Process.MoveToNextState(ASCommand.Success);
 						}
-						catch { }
+						catch (Exception)
+						{
+							On_LoggedInToServer(new LoggedInEventArgs(success: false, failureReason: LoggedInEventArgs.FailureReason.ConnectionFailure));
+							On_RegistrationToServer(new RegistrationToServerEventArgs());
+							Process.MoveToNextState(ASCommand.End);
+						}
 						break;
 					default:
 						break;
@@ -171,7 +176,7 @@ namespace flare_csharp
 		public class LoggedInEventArgs : EventArgs
 		{
 			public bool LoggedInSuccessfully { get; private set; }
-			public enum FailureReason { None, UntrustworthyServer,  PasswordInvalid, UsernameInvalid, ServerError, UsernameNotExist, UserDoesNotExits, AuthTokenExpired, Unknown }
+			public enum FailureReason { None, UntrustworthyServer,  PasswordInvalid, UsernameInvalid, ServerError, UsernameNotExist, UserDoesNotExits, AuthTokenExpired, ConnectionFailure, Unknown }
 			public FailureReason LoginFailureReason { get; private set; }
 			public LoggedInEventArgs(bool success, FailureReason? failureReason)
 			{
@@ -342,9 +347,13 @@ namespace flare_csharp
 			{
 				RegistrationForm = new RegistrationResponse(registerResponse);
 			}
+			public RegistrationToServerEventArgs()
+			{
+				RegistrationForm = new();
+			}
 			public class RegistrationResponse
 			{
-				public enum FailureReason { None, UsernameIsTaken, BadUsername, BadPassword, Unknown }
+				public enum FailureReason { None, UsernameIsTaken, BadUsername, BadPassword, ConnectionFailure, Unknown }
 				public FailureReason RegistrationFailureReason 
 				{ 
 					get
@@ -371,6 +380,10 @@ namespace flare_csharp
 				public RegistrationResponse(RegisterResponse registerResponse)
 				{
 					this.registerResponse = registerResponse;
+				}
+				public RegistrationResponse()
+				{
+					registerResponse = new();
 				}
 			}
 		}
