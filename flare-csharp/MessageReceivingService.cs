@@ -17,6 +17,7 @@ namespace flare_csharp
 		public Credentials Credentials { get; set; }
 		public string ServerUrl { get; private set; }
 		private ConcurrentQueue<InboundMessage> receivedMessageQueue;
+
 		public MessageReceivingService(Process<MRSState, MRSCommand> process, string serverUrl, Credentials credentials, IdentityStore identityStore) : base(process, new ClientWebSocket())
 		{
 			Credentials = credentials;
@@ -240,7 +241,8 @@ namespace flare_csharp
 					messageList.Add(message);
 				}
 			}
-			return messageList.ToList();
+			List<InboundMessage> list = messageList.ToList();
+			return list;
 		}
 
 		public sealed class InboundMessage : IEquatable<InboundMessage>

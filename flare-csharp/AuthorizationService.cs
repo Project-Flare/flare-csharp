@@ -433,6 +433,7 @@ namespace flare_csharp
 				if (!CredentialRequirements.ContainsOnlyAscii(password))
 					return PasswordState.NotAllAscii;
 
+			
 			//[NOTE]: I think that the string object in C# is in Unicode by default
 			const int MIN_ENTROPY = 35;
 			int passwordEntropy = CredentialRequirements.GetBitEntropy(password);
@@ -476,7 +477,7 @@ namespace flare_csharp
 				return UsernameState.TooLong;
 
 			Regex regex = new Regex(@"^[\d\w]{1,32}$", RegexOptions.IgnoreCase);
-			if (!regex.IsMatch(username) && UserCredentialRequirements.ValidUsernameRules.StringFormatType == CredentialRequirements.StringFormatType.Alphanumeric)
+			if (!regex.IsMatch(username))
 				return UsernameState.NotAlphanumeric;
 
 			try
