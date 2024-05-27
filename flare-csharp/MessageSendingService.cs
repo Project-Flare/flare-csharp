@@ -158,11 +158,13 @@ namespace flare_csharp
 			public string RecipientUsername { get; set; }
 			public string MessageText { get; set; }
 			public bool IsSentSuccessfully { get; set; }
-			public OutboundMessage(string recipientUsername, string messageText)
+			public ulong Counter { get; set; }
+			public OutboundMessage(string recipientUsername, string messageText, ulong counter)
 			{
 				RecipientUsername = recipientUsername;
 				MessageText = messageText;
 				IsSentSuccessfully = false;
+				Counter = counter;
 			}
 			public DiffieHellmanMessage? EncryptMessage(Credentials credentials, IdentityStore identityStore)
 			{
@@ -192,7 +194,7 @@ namespace flare_csharp
 
 				var envelope = new MessageEnvelope
 				{
-					MessageId = 0,
+					MessageId = Counter,
 					ReferenceToId = 0,
 					SenderUsername = credentials.Username,
 					SenderTime = (ulong)DateTime.UtcNow.Subtract(DateTime.UnixEpoch).TotalMilliseconds,
